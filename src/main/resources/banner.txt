@@ -1,0 +1,10 @@
+╔══════════════════════════════════════════════════════════════╗
+║                                                              ║
+║                    XOXO Social Media                        ║
+║                                                              ║
+║              Spring Boot Application                         ║
+║                                                              ║
+║              Version: ${application.version}                 ║
+║              Profile: ${spring.profiles.active}             ║
+║                                                              ║
+╚══════════════════════════════════════════════════════════════╝ 
