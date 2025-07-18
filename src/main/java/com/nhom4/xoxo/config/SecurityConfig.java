@@ -47,10 +47,13 @@ public class SecurityConfig {
                 .authorizeHttpRequests(authz -> authz
                         .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html").permitAll()
                         .requestMatchers("/api/auth/register", "/api/auth/login", "/api/auth/verify").permitAll()
-                        .requestMatchers("/api/test/**").permitAll()
-                        .requestMatchers("/api/user/**").authenticated()
+                        .requestMatchers("/api/test/**", "/api/auth-test/public").permitAll()
+                        .requestMatchers("/api/user/**", "/api/auth-test/**", "/api/user-test/**").authenticated()
+                        .requestMatchers("/login").permitAll()
                         .anyRequest().authenticated())
                 .oauth2Login(oauth2 -> oauth2
+                        .loginPage("/login")
+                        .defaultSuccessUrl("/oauth2/success")
                         .successHandler(oAuth2SuccessHandler()))
                 .addFilterBefore(jwtAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class);
 
