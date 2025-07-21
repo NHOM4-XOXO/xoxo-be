@@ -1,7 +1,7 @@
 package com.nhom4.xoxo.service;
 
-import com.nhom4.xoxo.dto.RegisterRequest;
 import com.nhom4.xoxo.entity.User;
+import com.nhom4.xoxo.dto.req.RegisterRequest;
 import com.nhom4.xoxo.entity.Role;
 import java.util.List;
 import java.util.Set;

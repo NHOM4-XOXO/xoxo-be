@@ -1,6 +1,5 @@
-package com.nhom4.xoxo.service;
+package com.nhom4.xoxo.service.serviceImp;
 
-import com.nhom4.xoxo.dto.RegisterRequest;
 import com.nhom4.xoxo.entity.User;
 import com.nhom4.xoxo.repository.UserRepository;
 import com.nhom4.xoxo.entity.Role;
@@ -8,9 +7,12 @@ import com.nhom4.xoxo.entity.AuthProvider;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import com.nhom4.xoxo.dto.MailMessage;
-import com.nhom4.xoxo.service.MailProducer;
+
+import com.nhom4.xoxo.dto.req.MailMessage;
+import com.nhom4.xoxo.dto.req.RegisterRequest;
+import com.nhom4.xoxo.service.UserService;
 import com.nhom4.xoxo.entity.VerificationToken;
+import com.nhom4.xoxo.kafka.MailProducer;
 import com.nhom4.xoxo.repository.VerificationTokenRepository;
 import java.util.UUID;
 import java.time.LocalDateTime;
@@ -26,7 +28,7 @@ public class UserServiceImpl implements UserService {
     private final MailProducer mailProducer;
     private final VerificationTokenRepository verificationTokenRepository;
 
-    @Autowired
+    
     public UserServiceImpl(UserRepository userRepository, PasswordEncoder passwordEncoder, MailProducer mailProducer, VerificationTokenRepository verificationTokenRepository) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
@@ -42,7 +44,8 @@ public class UserServiceImpl implements UserService {
         User user = new User();
         user.setEmail(request.getEmail());
         user.setPassword(passwordEncoder.encode(request.getPassword()));
-        
+        user.setFirstName(request.getFirstName());
+        user.setLastName(request.getLastName());
         // Set roles
         Set<Role> roles = new HashSet<>();
         roles.add(Role.USER);

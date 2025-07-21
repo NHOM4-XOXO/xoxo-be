@@ -1,4 +1,4 @@
-package com.nhom4.xoxo.dto;
+package com.nhom4.xoxo.dto.res;
 
 public class LoginResponse {
     private String token;

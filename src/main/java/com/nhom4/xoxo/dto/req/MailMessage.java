@@ -1,4 +1,4 @@
-package com.nhom4.xoxo.dto;
+package com.nhom4.xoxo.dto.req;
 
 public class MailMessage {
     private String to;

@@ -45,12 +45,8 @@ public class SecurityConfig {
                             response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Unauthorized");
                         }))
                 .authorizeHttpRequests(authz -> authz
-                        .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html").permitAll()
-                        .requestMatchers("/api/auth/register", "/api/auth/login", "/api/auth/verify").permitAll()
-                        .requestMatchers("/api/test/**", "/api/auth-test/public").permitAll()
-                        .requestMatchers("/api/user/**", "/api/auth-test/**", "/api/user-test/**").authenticated()
-                        .requestMatchers("/login").permitAll()
-                        .anyRequest().authenticated())
+                        // Temporarily allow all requests to test SpringDoc
+                        .anyRequest().permitAll())
                 .oauth2Login(oauth2 -> oauth2
                         .loginPage("/login")
                         .defaultSuccessUrl("/oauth2/success")

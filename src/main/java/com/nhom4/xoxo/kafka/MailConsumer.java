@@ -1,14 +1,15 @@
-package com.nhom4.xoxo.service;
+package com.nhom4.xoxo.kafka;
 
-import com.nhom4.xoxo.dto.MailMessage;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Service;
-import org.springframework.mail.SimpleMailMessage;
+
+import com.nhom4.xoxo.dto.req.MailMessage;
+
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.mail.javamail.MimeMessagePreparator;
-import jakarta.mail.internet.MimeMessage;
+
 import jakarta.mail.internet.InternetAddress;
 
 @Service
@@ -28,9 +29,10 @@ public class MailConsumer {
                 messageHelper.setTo(message.getTo());
                 messageHelper.setSubject(message.getSubject());
                 messageHelper.setText(message.getContent(), true); // true = HTML content
-                messageHelper.setFrom(new InternetAddress("javamailsendertest6@gmail.com", "XOXO Social Media", "UTF-8"));
+                messageHelper
+                        .setFrom(new InternetAddress("javamailsendertest6@gmail.com", "XOXO Social Media", "UTF-8"));
             };
-            
+
             mailSender.send(messagePreparator);
             System.out.println("[MailConsumer] Đã gửi mail thành công tới: " + message.getTo());
         } catch (Exception e) {
@@ -38,4 +40,4 @@ public class MailConsumer {
             e.printStackTrace();
         }
     }
-} 
+}

@@ -1,10 +1,11 @@
-package com.nhom4.xoxo.service;
+package com.nhom4.xoxo.kafka;
 
-import com.nhom4.xoxo.dto.MailMessage;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
+
+import com.nhom4.xoxo.dto.req.MailMessage;
 
 @Service
 public class MailProducer {

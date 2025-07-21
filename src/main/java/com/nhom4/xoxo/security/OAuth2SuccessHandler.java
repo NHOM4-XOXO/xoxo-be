@@ -103,12 +103,19 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
         try {
             // Tạo JWT token
             String jwt = jwtTokenProvider.generateToken(authentication);
-            
             System.out.println("✅ OAuth2 login successful for user: " + email);
             System.out.println("🔑 JWT token generated: " + jwt.substring(0, Math.min(20, jwt.length())) + "...");
-            
-            // Redirect về frontend với token
-            String redirectUrl = "http://localhost:3000/oauth2/success?token=" + jwt;
+
+            // Lấy redirect_uri nếu có
+            String redirectUri = request.getParameter("redirect_uri");
+            String redirectUrl;
+            if (redirectUri != null && redirectUri.contains("/swaggerui/oauth2-redirect-custom.html")) {
+                // Nếu là từ Swagger UI, redirect về swagger-ui kèm token
+                redirectUrl = redirectUri + "?token=" + jwt;
+            } else {
+                // Mặc định redirect về FE
+                redirectUrl = "http://localhost:3000/oauth2/success?token=" + jwt;
+            }
             getRedirectStrategy().sendRedirect(request, response, redirectUrl);
         } catch (Exception e) {
             System.err.println("❌ Error in OAuth2 success handler: " + e.getMessage());
