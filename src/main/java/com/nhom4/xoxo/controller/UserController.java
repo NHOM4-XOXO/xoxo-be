@@ -78,7 +78,7 @@ public class UserController {
                 user.setLastName(updateRequest.get("lastName"));
             }
 
-            User updatedUser = userService.updateUser(user);
+            User updatedUser = userService.updateUser(user, user);
             
             Map<String, Object> response = new HashMap<>();
             response.put("message", "Profile updated successfully");

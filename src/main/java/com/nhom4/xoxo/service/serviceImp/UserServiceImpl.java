@@ -8,8 +8,10 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+
 import com.nhom4.xoxo.dto.req.MailMessage;
 import com.nhom4.xoxo.dto.req.RegisterRequest;
+import com.nhom4.xoxo.dto.res.UserResponseProjection;
 import com.nhom4.xoxo.service.UserService;
 import com.nhom4.xoxo.entity.VerificationToken;
 import com.nhom4.xoxo.kafka.MailProducer;
@@ -19,7 +21,9 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Set;
 import java.util.HashSet;
-import com.nhom4.xoxo.entity.Role;
+
+import com.nhom4.xoxo.exception.ForbiddenException;
+import com.nhom4.xoxo.exception.ServiceException;
 
 @Service
 public class UserServiceImpl implements UserService {
@@ -53,8 +57,7 @@ public class UserServiceImpl implements UserService {
         
         user.setAuthProvider(AuthProvider.LOCAL);
         user.setEnabled(false);
-        user.setCreatedAt(LocalDateTime.now());
-        user.setUpdatedAt(LocalDateTime.now());
+      
         
         User savedUser = userRepository.save(user);
 
@@ -94,40 +97,106 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    public User findById(Long id) {
-        return userRepository.findById(id).orElse(null);
-    }
-
-    @Override
-    public User updateUser(User user) {
-        user.setUpdatedAt(LocalDateTime.now());
-        return userRepository.save(user);
-    }
-
-    @Override
-    public User toggleUserStatus(Long userId, boolean enabled) {
-        User user = findById(userId);
-        if (user == null) {
-            throw new RuntimeException("User not found");
+    public User findById(Long id, User currentUser) {
+        User targetUser = userRepository.findById(id).orElse(null);
+        if (targetUser == null) {
+            throw new ServiceException("User not found");
         }
-        user.setEnabled(enabled);
-        user.setUpdatedAt(LocalDateTime.now());
-        return userRepository.save(user);
+        if (currentUser.getRoles().contains(Role.OWNER)) {
+            if (targetUser.getRoles().contains(Role.OWNER)) {
+                throw new ForbiddenException("Can not view this user");
+            }
+            return targetUser;
+        }
+        if (currentUser.getRoles().contains(Role.ADMIN)) {
+            if (targetUser.getRoles().contains(Role.ADMIN) || targetUser.getRoles().contains(Role.OWNER)) {
+                throw new ForbiddenException("Admin can only view user with USER role");
+            }
+            return targetUser;
+        }
+        throw new ForbiddenException("You do not have permission to view this user");
     }
 
     @Override
-    public void deleteUser(Long userId) {
-        userRepository.deleteById(userId);
+    public User updateUser(User user, User currentUser) {
+        User targetUser = findById(user.getId(), currentUser);
+        if (targetUser == null) {
+            throw new ServiceException("User not found");
+        }
+        if (currentUser.getRoles().contains(Role.OWNER)) {
+            if (targetUser.getRoles().contains(Role.OWNER)) {
+                throw new ServiceException("Owner cannot update another owner");
+            }
+            return userRepository.save(user);
+        }
+        if (currentUser.getRoles().contains(Role.ADMIN)) {
+            if (targetUser.getRoles().contains(Role.ADMIN) || targetUser.getRoles().contains(Role.OWNER)) {
+                throw new ServiceException("Admin can only update user with USER role");
+            }
+        
+            return userRepository.save(user);
+        }
+        throw new ForbiddenException("You do not have permission to update this user");
     }
 
     @Override
-    public List<User> findAllUsers() {
-        return userRepository.findAll();
+    public User toggleUserStatus(Long userId, boolean enabled, User currentUser) {
+        User targetUser = findById(userId, currentUser);
+        if (targetUser == null) {
+            throw new ServiceException("User not found");
+        }
+        if (currentUser.getRoles().contains(Role.OWNER)) {
+            if (targetUser.getRoles().contains(Role.OWNER)) {
+                throw new ForbiddenException("Owner cannot update status of another owner");
+            }
+            targetUser.setEnabled(enabled);
+            targetUser.setUpdatedAt(LocalDateTime.now());
+            return userRepository.save(targetUser);
+        }
+        if (currentUser.getRoles().contains(Role.ADMIN)) {
+            if (targetUser.getRoles().contains(Role.ADMIN) || targetUser.getRoles().contains(Role.OWNER)) {
+                throw new ForbiddenException("Admin can only update status of user with USER role");
+            }
+            targetUser.setEnabled(enabled);
+            targetUser.setUpdatedAt(LocalDateTime.now());
+            return userRepository.save(targetUser);
+        }
+        throw new ForbiddenException("You do not have permission to update status of this user");
+    }
+
+    @Override
+    public void deleteUser(Long userId, User currentUser) {
+        User targetUser = findById(userId, currentUser);
+        if (targetUser == null) {
+            throw new ServiceException("User not found");
+        }
+        if (currentUser.getRoles().contains(Role.OWNER)) {
+            // Owner không được xóa owner khác (kể cả chính mình)
+            if (targetUser.getRoles().contains(Role.OWNER)) {
+                throw new ForbiddenException("Owner cannot delete another owner");
+            }
+            userRepository.deleteById(userId);
+            return;
+        }
+        if (currentUser.getRoles().contains(Role.ADMIN)) {
+            // Admin chỉ được xóa user thường
+            if (targetUser.getRoles().contains(Role.ADMIN) || targetUser.getRoles().contains(Role.OWNER)) {
+                throw new ForbiddenException("Admin can only delete user with USER role");
+            }
+            userRepository.deleteById(userId);
+            return;
+        }
+        throw new ForbiddenException("You do not have permission to delete this user");
+    }
+
+    @Override
+    public List<UserResponseProjection> findAllUsers() {
+        return userRepository.findAllUserResponses();
     }
 
     @Override
     public User addRoleToUser(Long userId, Role role) {
-        User user = findById(userId);
+        User user = findById(userId, null); // No currentUser for this operation
         if (user == null) {
             throw new RuntimeException("User not found");
         }
@@ -146,7 +215,7 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public User removeRoleFromUser(Long userId, Role role) {
-        User user = findById(userId);
+        User user = findById(userId, null); // No currentUser for this operation
         if (user == null) {
             throw new RuntimeException("User not found");
         }
@@ -163,7 +232,7 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public User setUserRoles(Long userId, Set<Role> roles) {
-        User user = findById(userId);
+        User user = findById(userId, null); // No currentUser for this operation
         if (user == null) {
             throw new RuntimeException("User not found");
         }

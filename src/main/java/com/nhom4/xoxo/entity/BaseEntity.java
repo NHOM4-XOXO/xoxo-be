@@ -1,10 +1,11 @@
 package com.nhom4.xoxo.entity;
 
-import java.sql.Date;
+import java.time.LocalDateTime;
 
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
+import jakarta.persistence.Column;
 import jakarta.persistence.MappedSuperclass;
 import lombok.Getter;
 import lombok.Setter;
@@ -13,9 +14,11 @@ import lombok.Setter;
 @Setter
 @MappedSuperclass
 public class BaseEntity {
-    private String updateBy;
     @CreationTimestamp
-    private Date updateAt;
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private LocalDateTime createdAt;
+
     @UpdateTimestamp
-    private Date createAt;
+    @Column(name = "updated_at", nullable = false)
+    private LocalDateTime updatedAt;
 }

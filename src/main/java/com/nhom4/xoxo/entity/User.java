@@ -1,12 +1,24 @@
 package com.nhom4.xoxo.entity;
 
 import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Set;
 
+import com.nhom4.xoxo.enums.GenderStatus;
+
 @Entity
 @Table(name = "users")
-public class User {
+@Data
+@AllArgsConstructor
+@NoArgsConstructor
+@Builder
+public class User extends BaseEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -14,7 +26,7 @@ public class User {
     @Column(nullable = false, unique = true)
     private String email;
 
-    @Column(nullable = false) 
+    @Column(nullable = false)
     private String password;
 
     @Column(nullable = true)
@@ -29,38 +41,27 @@ public class User {
     @Column(name = "role")
     private Set<Role> roles;
 
+    @Column(nullable = true)
+    private LocalDate dateOfBirth;
+
+    @Column(nullable = true)
+    @Enumerated(EnumType.STRING)
+    private GenderStatus gender;
+
+    @Column(nullable = true)
+    private String avatarUrl;
+
+    @Column(nullable = true)
+    private String coverUrl;
+
+    @Column(nullable = true)
+    private String bio;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private AuthProvider authProvider;
 
     @Column(nullable = false)
-    private LocalDateTime createdAt;
-
-    @Column(nullable = false)
-    private LocalDateTime updatedAt;
-
-    @Column(nullable = false)
     private boolean enabled = false;
 
-    // Getters and setters
-    public Long getId() { return id; }
-    public void setId(Long id) { this.id = id; }
-    public String getEmail() { return email; }
-    public void setEmail(String email) { this.email = email; }
-    public String getPassword() { return password; }
-    public void setPassword(String password) { this.password = password; }
-    public String getFirstName() { return firstName; }
-    public void setFirstName(String firstName) { this.firstName = firstName; }
-    public String getLastName() { return lastName; }
-    public void setLastName(String lastName) { this.lastName = lastName; }
-    public Set<Role> getRoles() { return roles; }
-    public void setRoles(Set<Role> roles) { this.roles = roles; }
-    public AuthProvider getAuthProvider() { return authProvider; }
-    public void setAuthProvider(AuthProvider authProvider) { this.authProvider = authProvider; }
-    public boolean isEnabled() { return enabled; }
-    public void setEnabled(boolean enabled) { this.enabled = enabled; }
-    public LocalDateTime getCreatedAt() { return createdAt; }
-    public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
-    public LocalDateTime getUpdatedAt() { return updatedAt; }
-    public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
-} 
+}

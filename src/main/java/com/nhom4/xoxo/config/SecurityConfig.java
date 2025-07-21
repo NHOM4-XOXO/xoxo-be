@@ -14,9 +14,17 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfigurationSource;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.nhom4.xoxo.constant.WrapResStatus;
+import com.nhom4.xoxo.dto.WrapRes;
+import com.nhom4.xoxo.exception.ForbiddenException;
+import com.nhom4.xoxo.exception.UnauthorizedException;
 import com.nhom4.xoxo.security.JwtAuthenticationFilter;
 import com.nhom4.xoxo.security.OAuth2SuccessHandler;
+
 import jakarta.servlet.http.HttpServletResponse;
+
 @Configuration
 @EnableWebSecurity
 public class SecurityConfig {
@@ -42,10 +50,22 @@ public class SecurityConfig {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .exceptionHandling(e -> e
                         .authenticationEntryPoint((request, response, authException) -> {
-                            response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Unauthorized");
+                            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                            response.setContentType("application/json");
+                            WrapRes<?> wrapRes = WrapRes.error(WrapResStatus.UNAUTHORIZED,
+                                    "Unauthorized: User not authenticated");
+                            ObjectMapper objectMapper = new ObjectMapper();
+                            response.getWriter().write(objectMapper.writeValueAsString(wrapRes));
+                        })
+                        .accessDeniedHandler((request, response, accessDeniedException) -> {
+                            response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+                            response.setContentType("application/json");
+                            WrapRes<?> wrapRes = WrapRes.error(WrapResStatus.SECURITY_ERROR, "Access denied");
+                            ObjectMapper objectMapper = new ObjectMapper();
+                            response.getWriter().write(objectMapper.writeValueAsString(wrapRes));
                         }))
                 .authorizeHttpRequests(authz -> authz
-                        // Temporarily allow all requests to test SpringDoc
+                        .requestMatchers("/api/admin/**").hasAnyRole("ADMIN", "OWNER")
                         .anyRequest().permitAll())
                 .oauth2Login(oauth2 -> oauth2
                         .loginPage("/login")
