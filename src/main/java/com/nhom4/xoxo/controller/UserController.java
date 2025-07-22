@@ -1,102 +1,72 @@
 package com.nhom4.xoxo.controller;
 
-import com.nhom4.xoxo.entity.User;
-import com.nhom4.xoxo.entity.Role;
-import com.nhom4.xoxo.service.UserService;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.modelmapper.ModelMapper;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
-import java.util.HashMap;
-import java.util.Map;
-import java.util.List;
-import java.util.Set;
-import java.util.HashSet;
+import com.nhom4.xoxo.dto.WrapRes;
+import com.nhom4.xoxo.dto.req.UpdateUserRequest;
+import com.nhom4.xoxo.dto.res.UserResponse;
+import com.nhom4.xoxo.entity.User;
+import com.nhom4.xoxo.service.UserService;
+
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+
 
 @RestController
 @RequestMapping("/api/user")
-@CrossOrigin(origins = "*", maxAge = 3600)
 public class UserController {
 
-    @Autowired
-    private UserService userService;
+   
+    private final UserService userService;
 
-    /**
-     * Lấy thông tin user hiện tại (đã đăng nhập)
-     */
-    @GetMapping("/profile")
-    public ResponseEntity<?> getCurrentUserProfile() {
-        try {
-            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-            String email = authentication.getName();
-            
-            User user = userService.findByEmail(email);
-            if (user == null) {
-                return ResponseEntity.notFound().build();
-            }
+    private final ModelMapper modelMapper;
 
-            Map<String, Object> response = new HashMap<>();
-            response.put("id", user.getId());
-            response.put("email", user.getEmail());
-            response.put("firstName", user.getFirstName());
-            response.put("lastName", user.getLastName());
-            response.put("enabled", user.isEnabled());
-            response.put("authProvider", user.getAuthProvider());
-            response.put("roles", user.getRoles());
-            response.put("createdAt", user.getCreatedAt());
-            response.put("updatedAt", user.getUpdatedAt());
-
-            return ResponseEntity.ok(response);
-        } catch (Exception e) {
-            Map<String, String> error = new HashMap<>();
-            error.put("error", "Failed to get user profile: " + e.getMessage());
-            return ResponseEntity.badRequest().body(error);
-        }
+    public UserController(UserService userService, ModelMapper modelMapper) {
+        this.userService = userService;
+        this.modelMapper = modelMapper;
     }
 
-    /**
-     * Cập nhật thông tin user
-     */
-    @PutMapping("/profile")
-    public ResponseEntity<?> updateUserProfile(@RequestBody Map<String, String> updateRequest) {
-        try {
-            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-            String email = authentication.getName();
-            
-            User user = userService.findByEmail(email);
-            if (user == null) {
-                return ResponseEntity.notFound().build();
-            }
-
-            // Cập nhật thông tin
-            if (updateRequest.containsKey("firstName")) {
-                user.setFirstName(updateRequest.get("firstName"));
-            }
-            if (updateRequest.containsKey("lastName")) {
-                user.setLastName(updateRequest.get("lastName"));
-            }
-
-            User updatedUser = userService.updateUser(user, user);
-            
-            Map<String, Object> response = new HashMap<>();
-            response.put("message", "Profile updated successfully");
-            response.put("user", Map.of(
-                "id", updatedUser.getId(),
-                "email", updatedUser.getEmail(),
-                "firstName", updatedUser.getFirstName(),
-                "lastName", updatedUser.getLastName(),
-                "enabled", updatedUser.isEnabled(),
-                "authProvider", updatedUser.getAuthProvider(),
-                "updatedAt", updatedUser.getUpdatedAt()
-            ));
-
-            return ResponseEntity.ok(response);
-        } catch (Exception e) {
-            Map<String, String> error = new HashMap<>();
-            error.put("error", "Failed to update profile: " + e.getMessage());
-            return ResponseEntity.badRequest().body(error);
+  
+    @Operation(
+        summary = "Lấy thông tin cá nhân của user hiện tại",
+        description = "Yêu cầu đã đăng nhập. Trả về thông tin user.",
+        responses = {
+            @ApiResponse(responseCode = "200", description = "Lấy thông tin user thành công")
         }
+    )
+    @GetMapping("/profile")
+    public ResponseEntity<WrapRes<?>> getCurrentUserProfile() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        String email = authentication.getName();
+        User user = userService.findByEmail(email);
+        UserResponse userResponse = modelMapper.map(user, UserResponse.class);
+        return ResponseEntity.ok(WrapRes.success(userResponse));
+    }
+
+    
+    @Operation(
+        summary = "Cập nhật thông tin cá nhân của user hiện tại",
+        description = "Yêu cầu đã đăng nhập. Cập nhật thông tin user.",
+        responses = {
+            @ApiResponse(responseCode = "200", description = "Cập nhật thông tin user thành công")
+        }
+    )
+    @PutMapping("/profile")
+    public ResponseEntity<WrapRes<?>> updateUserProfile(@RequestBody UpdateUserRequest updateRequest) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        String email = authentication.getName();
+        User user = userService.findByEmail(email);
+        modelMapper.map(updateRequest, user);
+        User updatedUser = userService.updateUser(user, user);
+        UserResponse userResponse = modelMapper.map(updatedUser, UserResponse.class);
+        return ResponseEntity.ok(WrapRes.success(userResponse));
     }
 } 

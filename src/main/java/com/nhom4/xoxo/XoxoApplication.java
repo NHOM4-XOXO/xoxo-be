@@ -1,18 +1,19 @@
 package com.nhom4.xoxo;
 
-import org.springframework.boot.SpringApplication;
-import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.boot.CommandLineRunner;
-import org.springframework.context.annotation.Bean;
-import org.springframework.beans.factory.annotation.Autowired;
-import com.nhom4.xoxo.entity.User;
-import com.nhom4.xoxo.entity.Role;
-import com.nhom4.xoxo.entity.AuthProvider;
-import com.nhom4.xoxo.repository.UserRepository;
-import org.springframework.security.crypto.password.PasswordEncoder;
+import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.Set;
-import java.time.LocalDateTime;
+
+import org.springframework.boot.CommandLineRunner;
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.context.annotation.Bean;
+import org.springframework.security.crypto.password.PasswordEncoder;
+
+import com.nhom4.xoxo.entity.AuthProvider;
+import com.nhom4.xoxo.entity.Role;
+import com.nhom4.xoxo.entity.User;
+import com.nhom4.xoxo.repository.UserRepository;
 
 @SpringBootApplication
 public class XoxoApplication {
@@ -29,7 +30,7 @@ public class XoxoApplication {
 			if (userRepository.findByEmail(ownerEmail).isEmpty()) {
 				User owner = new User();
 				owner.setEmail(ownerEmail);
-				owner.setPassword(passwordEncoder.encode("owner123"));
+				owner.setPassword(passwordEncoder.encode("Owner123@"));
 				owner.setFirstName("Owner");
 				owner.setLastName("Account");
 				Set<Role> roles = new HashSet<>();
@@ -47,7 +48,7 @@ public class XoxoApplication {
 			if (userRepository.findByEmail(adminEmail).isEmpty()) {
 				User admin = new User();
 				admin.setEmail(adminEmail);
-				admin.setPassword(passwordEncoder.encode("admin123"));
+				admin.setPassword(passwordEncoder.encode("Admin123@"));
 				admin.setFirstName("Admin");
 				admin.setLastName("Account");
 				Set<Role> roles = new HashSet<>();
@@ -65,7 +66,7 @@ public class XoxoApplication {
 			if (userRepository.findByEmail(userEmail).isEmpty()) {
 				User user = new User();
 				user.setEmail(userEmail);
-				user.setPassword(passwordEncoder.encode("user123"));
+				user.setPassword(passwordEncoder.encode("User123@"));
 				user.setFirstName("User");
 				user.setLastName("Account");
 				Set<Role> roles = new HashSet<>();
