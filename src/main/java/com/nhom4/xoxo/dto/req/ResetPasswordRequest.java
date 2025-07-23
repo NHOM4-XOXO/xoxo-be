@@ -7,6 +7,8 @@ import lombok.Data;
 
 @Data
 public class ResetPasswordRequest {
+
+    @NotBlank(message = "Token không được để trống")
     private String token;
 
     @Schema(description = "Mật khẩu mới", example = "Password@123")

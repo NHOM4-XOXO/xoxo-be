@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -26,12 +27,19 @@ import com.nhom4.xoxo.repository.UserRepository;
 import com.nhom4.xoxo.repository.VerificationTokenRepository;
 import com.nhom4.xoxo.service.UserService;
 
+
+
 @Service
 public class UserServiceImpl implements UserService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final MailProducer mailProducer;
     private final VerificationTokenRepository verificationTokenRepository;
+
+    @Value("${fe.user.base-url}")
+    String userBaseUrl ;
+    @Value("${fe.admin.base-url}")
+    String adminBaseUrl ;
 
     public UserServiceImpl(UserRepository userRepository, PasswordEncoder passwordEncoder, MailProducer mailProducer,
             VerificationTokenRepository verificationTokenRepository) {
@@ -68,7 +76,7 @@ public class UserServiceImpl implements UserService {
         verificationTokenRepository.save(verificationToken);
 
         // Gửi email xác thực
-        String verifyLink = "http://localhost:3000/verify?token=" + token;
+        String verifyLink = userBaseUrl + "/verify?token=" + token;
         String htmlContent = String.format(
                 """
                         <html>
@@ -280,6 +288,7 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public void forgotPassword(ForgotPasswordRequest request) {
+       
 
         User user = userRepository.findByEmail(request.getEmail())
                 .orElseThrow(() -> new NotFoundException("User not found"));
@@ -289,8 +298,10 @@ public class UserServiceImpl implements UserService {
         String token = UUID.randomUUID().toString();
         VerificationToken verificationToken = new VerificationToken(token, user, LocalDateTime.now().plusHours(1));
         verificationTokenRepository.save(verificationToken);
+        Boolean isAdmin = user.getRoles().contains(Role.ADMIN);
+        String baseUrl = isAdmin ? adminBaseUrl : userBaseUrl;
 
-        String resetLink = "http://localhost:3000/reset-password?token=" + token;
+        String resetLink = baseUrl + "/reset-password?token=" + token;
         String htmlContent = """
                 <html>
                     <body>
