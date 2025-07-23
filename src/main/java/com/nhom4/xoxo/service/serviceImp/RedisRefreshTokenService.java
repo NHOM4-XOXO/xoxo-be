@@ -14,18 +14,22 @@ public class RedisRefreshTokenService implements RefreshTokenService {
     private StringRedisTemplate redisTemplate;
     private final String PREFIX = "refresh_token:";
 
+    // Lưu key là refreshToken, value là userEmail
     @Override
-    public void saveRefreshToken(String userId, String refreshToken, long duration, TimeUnit unit) {
-        redisTemplate.opsForValue().set(PREFIX + userId, refreshToken, duration, unit);
+    public void saveRefreshToken(String refreshToken, String userEmail, long duration, TimeUnit unit) {
+        redisTemplate.opsForValue().set(PREFIX + refreshToken, userEmail, duration, unit);
     }
 
+    // Lấy userEmail từ refreshToken
     @Override
-    public String getRefreshToken(String userId) {
-        return redisTemplate.opsForValue().get(PREFIX + userId);
+    public String getUserEmailFromRefreshToken(String refreshToken) {
+        return redisTemplate.opsForValue().get(PREFIX + refreshToken);
     }
 
+    // Xóa refreshToken
     @Override
-    public void deleteRefreshToken(String userId) {
-        redisTemplate.delete(PREFIX + userId);
+    public void deleteRefreshToken(String refreshToken) {
+        redisTemplate.delete(PREFIX + refreshToken);
     }
+
 }

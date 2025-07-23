@@ -46,10 +46,12 @@ public class AdminController {
         User currentUser = userService.findByEmail(currentUserEmail);
 
         List<UserResponseProjection> users;
-        if (currentUser.getRoles().stream().anyMatch(role -> role.equals(Role.ADMIN))) {
-            users = userService.findAllUsersAdmin();
-        } else if (currentUser.getRoles().stream().anyMatch(role -> role.equals(Role.OWNER))) {
-            users = userService.findAllUsersOwner();
+        if (userService.isAdminOrOwner(currentUser)) {
+            if (currentUser.getRoles().stream().anyMatch(role -> role.equals(Role.ADMIN))) {
+                users = userService.findAllUsersAdmin();
+            } else {
+                users = userService.findAllUsersOwner();
+            }
         } else {
             return ResponseEntity.status(403)
                     .body(WrapRes.error(WrapResStatus.SECURITY_ERROR, "Access denied. Admin or Owner role required."));
@@ -68,13 +70,13 @@ public class AdminController {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         String currentUserEmail = authentication.getName();
         User currentUser = userService.findByEmail(currentUserEmail);
-        if (!currentUser.getRoles().stream().anyMatch(role -> role.equals(Role.ADMIN) || role.equals(Role.OWNER))) {
+        if (!userService.canDeleteUser(currentUser, userId)) {
+            if (userService.isSelf(currentUser, userId)) {
+                return ResponseEntity.badRequest()
+                        .body(WrapRes.error(WrapResStatus.BAD_REQUEST, "Cannot delete your own account"));
+            }
             return ResponseEntity.status(403)
                     .body(WrapRes.error(WrapResStatus.SECURITY_ERROR, "Access denied. Admin or Owner role required."));
-        }
-        if (currentUser.getId().equals(userId)) {
-            return ResponseEntity.badRequest()
-                    .body(WrapRes.error(WrapResStatus.BAD_REQUEST, "Cannot delete your own account"));
         }
         userService.deleteUser(userId, currentUser);
         return ResponseEntity.ok(WrapRes.success(Map.of("message", "User deleted successfully")));
@@ -91,7 +93,7 @@ public class AdminController {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         String currentUserEmail = authentication.getName();
         User currentUser = userService.findByEmail(currentUserEmail);
-        if (!currentUser.getRoles().stream().anyMatch(role -> role.equals(Role.ADMIN) || role.equals(Role.OWNER))) {
+        if (!userService.canToggleUserStatus(currentUser)) {
             return ResponseEntity.status(403)
                     .body(WrapRes.error(WrapResStatus.SECURITY_ERROR, "Access denied. Admin or Owner role required."));
         }
@@ -122,8 +124,7 @@ public class AdminController {
         if (targetUser == null) {
             return ResponseEntity.status(404).body(WrapRes.error(WrapResStatus.NOT_FOUND, "User not found"));
         }
-        if (!currentUser.getId().equals(userId) && !currentUser.getRoles().stream()
-                .anyMatch(role -> role.equals(Role.ADMIN) || role.equals(Role.OWNER))) {
+        if (!userService.canViewUser(currentUser, userId)) {
             return ResponseEntity.status(403).body(WrapRes.error(WrapResStatus.SECURITY_ERROR, "Access denied"));
         }
         UserResponse userResponse = modelMapper.map(targetUser, UserResponse.class);

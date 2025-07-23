@@ -23,20 +23,19 @@ public class CustomUserDetailsService implements UserDetailsService {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new UsernameNotFoundException("User not found with email: " + email));
 
-        // Xử lý password cho OAuth2 users
         String password = user.getPassword();
         if (password == null || password.isEmpty()) {
-            // OAuth2 users không có password, set một password mặc định
             password = "OAUTH2_USER_PASSWORD";
         }
 
-        return new org.springframework.security.core.userdetails.User(
+        return new CustomUserDetails(
                 user.getEmail(),
                 password,
                 user.isEnabled(),
-                true, true, true,
+                user.isPasswordSet(),
                 user.getRoles().stream()
                         .map(role -> new SimpleGrantedAuthority("ROLE_" + role.name()))
                         .collect(Collectors.toList()));
+               
     }
 }

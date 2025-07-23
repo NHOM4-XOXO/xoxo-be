@@ -2,6 +2,9 @@ package com.nhom4.xoxo.controller;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.web.bind.annotation.CookieValue;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -11,6 +14,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.nhom4.xoxo.constant.WrapResStatus;
 import com.nhom4.xoxo.dto.WrapRes;
+import com.nhom4.xoxo.dto.req.ChangePasswordRequest;
 import com.nhom4.xoxo.dto.req.ForgotPasswordRequest;
 import com.nhom4.xoxo.dto.req.LoginRequest;
 import com.nhom4.xoxo.dto.req.RegisterRequest;
@@ -115,5 +119,47 @@ public class AuthController {
     public ResponseEntity<WrapRes<?>> resetPassword(@RequestBody @Valid ResetPasswordRequest request) {
         userService.resetPassword(request);
         return ResponseEntity.ok(WrapRes.success("Reset mật khẩu thành công. Bạn có thể đăng nhập!"));
+    }
+
+    @Operation(
+        summary = "Logout",
+        description = "Logout tài khoản",
+        responses = {
+            @ApiResponse(responseCode = "200", description = "Logout thành công")
+        }
+    )
+    @PostMapping("/logout")
+    public ResponseEntity<WrapRes<?>> logout(@CookieValue("refreshToken") String refreshToken) {
+        userService.logout(refreshToken);
+        return ResponseEntity.ok(WrapRes.success("Logout thành công"));
+    }
+
+    @Operation(
+        summary = "Refresh token",
+        description = "Refresh token",
+        responses = {
+            @ApiResponse(responseCode = "200", description = "Refresh token thành công")
+        }
+    )
+    @PostMapping("/refresh-token")
+    public ResponseEntity<WrapRes<?>> refreshToken(@CookieValue("refreshToken") String refreshToken) {
+        String newAccessToken = userService.refreshToken(refreshToken);
+        return ResponseEntity.ok(WrapRes.success(newAccessToken));
+    }   
+
+    @Operation(
+        summary = "Change password",
+        description = "Change password",
+        responses = {
+            @ApiResponse(responseCode = "200", description = "Change password thành công")
+        }
+    )
+    @PostMapping("/change-password")
+    public ResponseEntity<WrapRes<?>> changePassword(@RequestBody @Valid ChangePasswordRequest request, @AuthenticationPrincipal UserDetails userDetails) {
+        boolean isSuccess = userService.changePassword(request.getOldPassword(), request.getNewPassword(), userDetails);
+        if(isSuccess){
+            return ResponseEntity.ok(WrapRes.success("Change password thành công"));
+        }
+        return ResponseEntity.badRequest().body(WrapRes.error(WrapResStatus.BAD_REQUEST, "Change password thất bại"));
     }
 } 

@@ -1,16 +1,26 @@
 package com.nhom4.xoxo.entity;
 
-import jakarta.persistence.*;
+import java.time.LocalDate;
+import java.util.Set;
+
+import com.nhom4.xoxo.enums.GenderStatus;
+
+import jakarta.persistence.CollectionTable;
+import jakarta.persistence.Column;
+import jakarta.persistence.ElementCollection;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.util.Set;
-
-import com.nhom4.xoxo.enums.GenderStatus;
 
 @Entity
 @Table(name = "users")
@@ -28,6 +38,8 @@ public class User extends BaseEntity {
 
     @Column(nullable = false)
     private String password;
+    @Column(nullable = false)
+    private boolean passwordSet = false;
 
     @Column(nullable = true)
     private String firstName;

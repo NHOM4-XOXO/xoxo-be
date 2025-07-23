@@ -1,23 +1,30 @@
 package com.nhom4.xoxo.security;
 
-import com.nhom4.xoxo.entity.User;
-import com.nhom4.xoxo.entity.AuthProvider;
-import com.nhom4.xoxo.entity.Role;
-import com.nhom4.xoxo.repository.UserRepository;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
+import java.io.IOException;
+import java.time.Duration;
+import java.time.LocalDateTime;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.TimeUnit;
+
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseCookie;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.security.web.authentication.SimpleUrlAuthenticationSuccessHandler;
 import org.springframework.stereotype.Component;
 
-import java.io.IOException;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
-import java.util.HashSet;
-import java.time.LocalDateTime;
+import com.nhom4.xoxo.entity.AuthProvider;
+import com.nhom4.xoxo.entity.Role;
+import com.nhom4.xoxo.entity.User;
+import com.nhom4.xoxo.repository.UserRepository;
+import com.nhom4.xoxo.service.RefreshTokenService;
+
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 
 @Component
 public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler {
@@ -27,6 +34,11 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
 
     @Autowired
     private JwtTokenProvider jwtTokenProvider;
+
+    @Autowired
+    private RefreshTokenService refreshTokenService;
+    @Autowired
+    private PasswordEncoder passwordEncoder;
 
     @Override
     public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response,
@@ -80,8 +92,9 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
             user.setFirstName(firstName);
             user.setLastName(lastName);
             
-            // Set password mặc định cho OAuth2 users
-            user.setPassword("OAUTH2_USER_PASSWORD");
+            // Set password mặc định cho OAuth2 users (random, đã mã hóa)
+            String randomPassword = java.util.UUID.randomUUID().toString();
+            user.setPassword(passwordEncoder.encode(randomPassword));
             user.setEnabled(true);
             user.setAuthProvider(AuthProvider.GOOGLE);
             
@@ -105,6 +118,21 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
             String jwt = jwtTokenProvider.generateToken(authentication);
             System.out.println("✅ OAuth2 login successful for user: " + email);
             System.out.println("🔑 JWT token generated: " + jwt.substring(0, Math.min(20, jwt.length())) + "...");
+
+           
+            String refreshToken = java.util.UUID.randomUUID().toString();
+            // Lưu refreshToken vào Redis (7 ngày)
+            refreshTokenService.saveRefreshToken(refreshToken, user.getEmail(), 7, TimeUnit.DAYS);
+            // Set refreshToken vào HttpOnly cookie
+            ResponseCookie cookie = ResponseCookie.from("refreshToken", refreshToken)
+                .httpOnly(true)
+                .secure(false) 
+                .path("/")
+                .maxAge(Duration.ofDays(7))
+                .sameSite("Strict")
+                .build();
+            response.addHeader("Set-Cookie", cookie.toString());
+           
 
             // Lấy redirect_uri nếu có
             String redirectUri = request.getParameter("redirect_uri");

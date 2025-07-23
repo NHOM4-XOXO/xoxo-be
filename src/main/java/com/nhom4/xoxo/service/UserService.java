@@ -3,6 +3,8 @@ package com.nhom4.xoxo.service;
 import java.util.List;
 import java.util.Set;
 
+import org.springframework.security.core.userdetails.UserDetails;
+
 import com.nhom4.xoxo.dto.req.ForgotPasswordRequest;
 import com.nhom4.xoxo.dto.req.LoginRequest;
 import com.nhom4.xoxo.dto.req.RegisterRequest;
@@ -27,9 +29,24 @@ public interface UserService {
     User removeRoleFromUser(Long userId, Role role, User currentUser);
     User setUserRoles(Long userId, Set<Role> roles, User currentUser);
     User createAdminUser(String email, String password, String firstName, String lastName);
-    void forgotPassword(ForgotPasswordRequest request);
-    void resetPassword(ResetPasswordRequest request);
-    LoginResponse login(LoginRequest request ,HttpServletResponse response);
     String register(RegisterRequest request);
+    void resetPassword(ResetPasswordRequest request);
+    void forgotPassword(ForgotPasswordRequest request);
+    LoginResponse login(LoginRequest request, HttpServletResponse response);
+    String refreshToken(String refreshToken);
     String verifyAccount(String token);
+    boolean logout(String refreshToken);
+    boolean changePassword(String oldPassword, String newPassword, UserDetails currentUser);
+    // Kiểm tra quyền
+    boolean isAdminOrOwner(User user);
+    boolean isSelf(User currentUser, Long userId);
+    boolean canViewUser(User currentUser, Long targetUserId);
+    boolean canDeleteUser(User currentUser, Long targetUserId);
+    boolean canToggleUserStatus(User currentUser);
+    // Kiểm tra quyền cho OwnerController
+    boolean isOwner(User user);
+    boolean canAddRole(User currentUser);
+    boolean canRemoveRole(User currentUser, Role role);
+    boolean canSetUserRoles(User currentUser);
+    boolean canCreateAdminUser(User currentUser);
 } 

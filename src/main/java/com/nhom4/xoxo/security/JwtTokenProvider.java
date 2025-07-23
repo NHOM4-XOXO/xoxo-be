@@ -2,12 +2,14 @@ package com.nhom4.xoxo.security;
 
 import java.security.Key;
 import java.util.Date;
+import java.util.HashSet;
 import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
 
 import com.nhom4.xoxo.entity.Role;
@@ -20,7 +22,6 @@ import io.jsonwebtoken.security.Keys;
 
 @Component
 public class JwtTokenProvider {
-  
 
     @Value("${app.jwt-secret}")
     private String jwtSecret;
@@ -30,6 +31,30 @@ public class JwtTokenProvider {
 
     private Key getSigningKey() {
         return Keys.hmacShaKeyFor(jwtSecret.getBytes());
+    }
+
+    public String generateToken(UserDetails userDetails) {
+        String username = userDetails.getUsername();
+        Set<Role> roles = new HashSet<>();
+        userDetails.getAuthorities().forEach(auth -> {
+            if (auth.getAuthority().equals("ROLE_USER"))
+                roles.add(Role.USER);
+            if (auth.getAuthority().equals("ROLE_OWNER"))
+                roles.add(Role.OWNER);
+            if (auth.getAuthority().equals("ROLE_ADMIN"))
+                roles.add(Role.ADMIN);
+        });
+
+        Date now = new Date();
+        Date expiryDate = new Date(now.getTime() + jwtExpirationInMs);
+
+        return Jwts.builder()
+                .setSubject(username)
+                .claim("roles", roles.stream().map(Role::name).collect(Collectors.toList()))
+                .setIssuedAt(now)
+                .setExpiration(expiryDate)
+                .signWith(getSigningKey(), SignatureAlgorithm.HS512)
+                .compact();
     }
 
     public String generateToken(Authentication authentication) {
@@ -48,11 +73,18 @@ public class JwtTokenProvider {
             username = authentication.getName();
         }
         // get role from authentication
-        Set<Role> roles = authentication.getAuthorities().stream()
-                .map(GrantedAuthority::getAuthority)
-                .map(Role::valueOf)
-                .collect(Collectors.toSet());
-        
+        Set<Role> roles = new HashSet<>();
+
+        if (authentication.getAuthorities().contains(new SimpleGrantedAuthority("ROLE_USER"))) {
+            roles.add(Role.USER);
+        }
+        if (authentication.getAuthorities().contains(new SimpleGrantedAuthority("ROLE_OWNER"))) {
+            roles.add(Role.OWNER);
+        }
+        if (authentication.getAuthorities().contains(new SimpleGrantedAuthority("ROLE_ADMIN"))) {
+            roles.add(Role.ADMIN);
+        }
+
         Date now = new Date();
         Date expiryDate = new Date(now.getTime() + jwtExpirationInMs);
 

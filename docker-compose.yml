@@ -6,6 +6,8 @@ services:
     ports:
       - "6379:6379"
     restart: unless-stopped
+    volumes:
+      - redis_data:/data
   mysql:
     image: mysql:latest
     container_name: some-mysql
@@ -70,3 +72,4 @@ services:
 volumes:
   mysql_data:
   kafka_data:
+  redis_data:

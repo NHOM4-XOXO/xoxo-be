@@ -15,6 +15,8 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -41,8 +43,6 @@ import com.nhom4.xoxo.service.UserService;
 
 import jakarta.servlet.http.HttpServletResponse;
 
-
-
 @Service
 public class UserServiceImpl implements UserService {
     private final UserRepository userRepository;
@@ -52,15 +52,17 @@ public class UserServiceImpl implements UserService {
     private final RefreshTokenService refreshTokenService;
     private final AuthenticationManager authenticationManager;
     private final JwtTokenProvider jwtTokenProvider;
+    private final UserDetailsService userDetailsService;
 
     @Value("${fe.user.base-url}")
-    String userBaseUrl ;
+    String userBaseUrl;
     @Value("${fe.admin.base-url}")
-    String adminBaseUrl ;
+    String adminBaseUrl;
 
     public UserServiceImpl(UserRepository userRepository, PasswordEncoder passwordEncoder, MailProducer mailProducer,
             VerificationTokenRepository verificationTokenRepository, RefreshTokenService refreshTokenService,
-            AuthenticationManager authenticationManager, JwtTokenProvider jwtTokenProvider) {
+            AuthenticationManager authenticationManager, JwtTokenProvider jwtTokenProvider,
+            UserDetailsService userDetailsService) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.mailProducer = mailProducer;
@@ -68,6 +70,7 @@ public class UserServiceImpl implements UserService {
         this.refreshTokenService = refreshTokenService;
         this.authenticationManager = authenticationManager;
         this.jwtTokenProvider = jwtTokenProvider;
+        this.userDetailsService = userDetailsService;
     }
 
     @Override
@@ -141,6 +144,9 @@ public class UserServiceImpl implements UserService {
             return targetUser;
         }
         if (currentUser.getRoles().contains(Role.ADMIN)) {
+            if (targetUser.getId().equals(currentUser.getId())) {
+                return targetUser;
+            }
             if (targetUser.getRoles().contains(Role.ADMIN) || targetUser.getRoles().contains(Role.OWNER)) {
                 throw new ForbiddenException("Admin can only view user with USER role");
             }
@@ -162,6 +168,9 @@ public class UserServiceImpl implements UserService {
             return userRepository.save(user);
         }
         if (currentUser.getRoles().contains(Role.ADMIN)) {
+            if (targetUser.getId().equals(currentUser.getId())) {
+                return userRepository.save(user);
+            }
             if (targetUser.getRoles().contains(Role.ADMIN) || targetUser.getRoles().contains(Role.OWNER)) {
                 throw new ServiceException("Admin can only update user with USER role");
             }
@@ -309,7 +318,6 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public void forgotPassword(ForgotPasswordRequest request) {
-       
 
         User user = userRepository.findByEmail(request.getEmail())
                 .orElseThrow(() -> new NotFoundException("User not found"));
@@ -368,8 +376,7 @@ public class UserServiceImpl implements UserService {
     public LoginResponse login(LoginRequest request, HttpServletResponse response) {
         // 1. Xác thực user
         Authentication authentication = authenticationManager.authenticate(
-            new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword())
-        );
+                new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword()));
         SecurityContextHolder.getContext().setAuthentication(authentication);
 
         // 2. Sinh accessToken (JWT)
@@ -377,22 +384,22 @@ public class UserServiceImpl implements UserService {
 
         // 3. Lấy user
         User user = userRepository.findByEmail(request.getEmail())
-            .orElseThrow(() -> new NotFoundException("User not found"));
+                .orElseThrow(() -> new NotFoundException("User not found"));
 
         // 4. Sinh refreshToken (UUID hoặc JWT riêng)
         String refreshToken = UUID.randomUUID().toString();
 
         // 5. Lưu refreshToken vào Redis (7 ngày)
-        refreshTokenService.saveRefreshToken(user.getId().toString(), refreshToken, 7, TimeUnit.DAYS);
+        refreshTokenService.saveRefreshToken( refreshToken,user.getEmail().toString(), 7, TimeUnit.DAYS);
 
         // 6. Set refreshToken vào HttpOnly cookie
         ResponseCookie cookie = ResponseCookie.from("refreshToken", refreshToken)
-            .httpOnly(true)
-            .secure(false) // true nếu dùng HTTPS
-            .path("/")
-            .maxAge(Duration.ofDays(7))
-            .sameSite("Strict")
-            .build();
+                .httpOnly(true)
+                .secure(false) // true nếu dùng HTTPS
+                .path("/")
+                .maxAge(Duration.ofDays(7))
+                .sameSite("Strict")
+                .build();
         response.addHeader("Set-Cookie", cookie.toString());
 
         // 7. Trả về LoginResponse (accessToken, email, roles)
@@ -415,33 +422,35 @@ public class UserServiceImpl implements UserService {
         user.setRoles(roles);
         user.setAuthProvider(AuthProvider.LOCAL);
         user.setEnabled(false);
+        user.setPasswordSet(true);
         User savedUser = userRepository.save(user);
         // Sinh token xác thực
         String token = UUID.randomUUID().toString();
-        VerificationToken verificationToken = new VerificationToken(token, savedUser, LocalDateTime.now().plusHours(24));
+        VerificationToken verificationToken = new VerificationToken(token, savedUser,
+                LocalDateTime.now().plusHours(24));
         verificationTokenRepository.save(verificationToken);
         // Gửi email xác thực
         String verifyLink = userBaseUrl + "/verify?token=" + token;
         String htmlContent = String.format(
-            """
-                <html>
-                <body>
-                    <h2>Xác nhận đăng ký tài khoản</h2>
-                    <p>Cảm ơn bạn đã đăng ký tài khoản tại XOXO Social Media.</p>
-                    <p>Vui lòng xác nhận email bằng cách bấm vào link sau:</p>
-                    <p><a href=\"%s\" style=\"background-color: #4CAF50; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;\">Xác nhận tài khoản</a></p>
-                    <p>Hoặc copy link này: <a href=\"%s\">%s</a></p>
-                    <p><b>Token:</b> <span style=\"color: #d32f2f;\">%s</span></p>
-                    <p>Link có hiệu lực trong 24 giờ.</p>
-                    <p>Trân trọng,<br>Team XOXO</p>
-                </body>
-                </html>
-            """,
-            verifyLink, verifyLink, verifyLink, token);
+                """
+                            <html>
+                            <body>
+                                <h2>Xác nhận đăng ký tài khoản</h2>
+                                <p>Cảm ơn bạn đã đăng ký tài khoản tại XOXO Social Media.</p>
+                                <p>Vui lòng xác nhận email bằng cách bấm vào link sau:</p>
+                                <p><a href=\"%s\" style=\"background-color: #4CAF50; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;\">Xác nhận tài khoản</a></p>
+                                <p>Hoặc copy link này: <a href=\"%s\">%s</a></p>
+                                <p><b>Token:</b> <span style=\"color: #d32f2f;\">%s</span></p>
+                                <p>Link có hiệu lực trong 24 giờ.</p>
+                                <p>Trân trọng,<br>Team XOXO</p>
+                            </body>
+                            </html>
+                        """,
+                verifyLink, verifyLink, verifyLink, token);
         MailMessage mailMessage = new MailMessage(
-            savedUser.getEmail(),
-            "Xác nhận đăng ký tài khoản",
-            htmlContent);
+                savedUser.getEmail(),
+                "Xác nhận đăng ký tài khoản",
+                htmlContent);
         mailProducer.sendMail(mailMessage);
         return "Đăng ký thành công! Vui lòng kiểm tra email để xác thực tài khoản.";
     }
@@ -462,4 +471,98 @@ public class UserServiceImpl implements UserService {
         verificationTokenRepository.delete(verificationToken);
         return "Xác thực tài khoản thành công. Bạn có thể đăng nhập!";
     }
+
+    @Override
+    public String refreshToken(String refreshToken) {
+        String userEmail = refreshTokenService.getUserEmailFromRefreshToken(refreshToken);
+        if (userEmail == null) {
+            throw new ServiceException("Refresh token không hợp lệ.");
+        }
+        UserDetails userDetails = userDetailsService.loadUserByUsername(userEmail);
+        String accessToken = jwtTokenProvider.generateToken(userDetails);
+        return accessToken;
+    }
+
+    @Override
+    public boolean logout(String refreshToken) {
+        refreshTokenService.deleteRefreshToken(refreshToken);
+        return true;
+    }
+
+    @Override
+    public boolean changePassword(String oldPassword, String newPassword, UserDetails currentUser) {
+        
+        User user = userRepository.findByEmail(currentUser.getUsername())
+                .orElseThrow(() -> new NotFoundException("User not found"));
+
+
+        // Nếu passwordSet = false thì không cần oldPassword
+        if (!user.isPasswordSet()) {
+            user.setPassword(passwordEncoder.encode(newPassword));
+            user.setPasswordSet(true);
+            user.setUpdatedAt(LocalDateTime.now());
+            userRepository.save(user);
+            return true;
+        }
+        // Nếu passwordSet = true thì cần oldPassword
+        if (passwordEncoder.matches(oldPassword, user.getPassword())) {
+            user.setPassword(passwordEncoder.encode(newPassword));
+            user.setUpdatedAt(LocalDateTime.now());
+            userRepository.save(user);
+            return true;
+        }
+        return false;
+    }
+
+    @Override
+    public boolean isAdminOrOwner(User user) {
+        return user.getRoles().stream().anyMatch(role -> role.equals(Role.ADMIN) || role.equals(Role.OWNER));
+    }
+
+    @Override
+    public boolean isSelf(User currentUser, Long userId) {
+        return currentUser.getId().equals(userId);
+    }
+
+    @Override
+    public boolean canViewUser(User currentUser, Long targetUserId) {
+        return isSelf(currentUser, targetUserId) || isAdminOrOwner(currentUser);
+    }
+
+    @Override
+    public boolean canDeleteUser(User currentUser, Long targetUserId) {
+        // Không được xóa chính mình, chỉ admin/owner mới được xóa
+        return isAdminOrOwner(currentUser) && !isSelf(currentUser, targetUserId);
+    }
+
+    @Override
+    public boolean canToggleUserStatus(User currentUser) {
+        return isAdminOrOwner(currentUser);
+    }
+
+    @Override
+    public boolean isOwner(User user) {
+        return user.getRoles().stream().anyMatch(role -> role.equals(Role.OWNER));
+    }
+
+    @Override
+    public boolean canAddRole(User currentUser) {
+        return isOwner(currentUser);
+    }
+
+    @Override
+    public boolean canRemoveRole(User currentUser, Role role) {
+        return isOwner(currentUser) && !role.equals(Role.OWNER);
+    }
+
+    @Override
+    public boolean canSetUserRoles(User currentUser) {
+        return isOwner(currentUser);
+    }
+
+    @Override
+    public boolean canCreateAdminUser(User currentUser) {
+        return isOwner(currentUser);
+    }
+
 }
