@@ -1,19 +1,29 @@
 package com.nhom4.xoxo.service.serviceImp;
 
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.ResponseCookie;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import com.nhom4.xoxo.dto.req.ForgotPasswordRequest;
+import com.nhom4.xoxo.dto.req.LoginRequest;
 import com.nhom4.xoxo.dto.req.MailMessage;
 import com.nhom4.xoxo.dto.req.RegisterRequest;
 import com.nhom4.xoxo.dto.req.ResetPasswordRequest;
+import com.nhom4.xoxo.dto.res.LoginResponse;
 import com.nhom4.xoxo.dto.res.UserResponseProjection;
 import com.nhom4.xoxo.entity.AuthProvider;
 import com.nhom4.xoxo.entity.Role;
@@ -25,7 +35,11 @@ import com.nhom4.xoxo.exception.ServiceException;
 import com.nhom4.xoxo.kafka.MailProducer;
 import com.nhom4.xoxo.repository.UserRepository;
 import com.nhom4.xoxo.repository.VerificationTokenRepository;
+import com.nhom4.xoxo.security.JwtTokenProvider;
+import com.nhom4.xoxo.service.RefreshTokenService;
 import com.nhom4.xoxo.service.UserService;
+
+import jakarta.servlet.http.HttpServletResponse;
 
 
 
@@ -35,6 +49,9 @@ public class UserServiceImpl implements UserService {
     private final PasswordEncoder passwordEncoder;
     private final MailProducer mailProducer;
     private final VerificationTokenRepository verificationTokenRepository;
+    private final RefreshTokenService refreshTokenService;
+    private final AuthenticationManager authenticationManager;
+    private final JwtTokenProvider jwtTokenProvider;
 
     @Value("${fe.user.base-url}")
     String userBaseUrl ;
@@ -42,11 +59,15 @@ public class UserServiceImpl implements UserService {
     String adminBaseUrl ;
 
     public UserServiceImpl(UserRepository userRepository, PasswordEncoder passwordEncoder, MailProducer mailProducer,
-            VerificationTokenRepository verificationTokenRepository) {
+            VerificationTokenRepository verificationTokenRepository, RefreshTokenService refreshTokenService,
+            AuthenticationManager authenticationManager, JwtTokenProvider jwtTokenProvider) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.mailProducer = mailProducer;
         this.verificationTokenRepository = verificationTokenRepository;
+        this.refreshTokenService = refreshTokenService;
+        this.authenticationManager = authenticationManager;
+        this.jwtTokenProvider = jwtTokenProvider;
     }
 
     @Override
@@ -341,5 +362,104 @@ public class UserServiceImpl implements UserService {
         user.setUpdatedAt(LocalDateTime.now());
         userRepository.save(user);
         verificationTokenRepository.delete(verificationToken);
+    }
+
+    @Override
+    public LoginResponse login(LoginRequest request, HttpServletResponse response) {
+        // 1. Xác thực user
+        Authentication authentication = authenticationManager.authenticate(
+            new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword())
+        );
+        SecurityContextHolder.getContext().setAuthentication(authentication);
+
+        // 2. Sinh accessToken (JWT)
+        String accessToken = jwtTokenProvider.generateToken(authentication);
+
+        // 3. Lấy user
+        User user = userRepository.findByEmail(request.getEmail())
+            .orElseThrow(() -> new NotFoundException("User not found"));
+
+        // 4. Sinh refreshToken (UUID hoặc JWT riêng)
+        String refreshToken = UUID.randomUUID().toString();
+
+        // 5. Lưu refreshToken vào Redis (7 ngày)
+        refreshTokenService.saveRefreshToken(user.getId().toString(), refreshToken, 7, TimeUnit.DAYS);
+
+        // 6. Set refreshToken vào HttpOnly cookie
+        ResponseCookie cookie = ResponseCookie.from("refreshToken", refreshToken)
+            .httpOnly(true)
+            .secure(false) // true nếu dùng HTTPS
+            .path("/")
+            .maxAge(Duration.ofDays(7))
+            .sameSite("Strict")
+            .build();
+        response.addHeader("Set-Cookie", cookie.toString());
+
+        // 7. Trả về LoginResponse (accessToken, email, roles)
+        return new LoginResponse(accessToken, user.getEmail(), user.getRoles().toString());
+    }
+
+    @Override
+    public String register(RegisterRequest request) {
+        if (userRepository.existsByEmail(request.getEmail())) {
+            throw new RuntimeException("Email already exists");
+        }
+        User user = new User();
+        user.setEmail(request.getEmail());
+        user.setPassword(passwordEncoder.encode(request.getPassword()));
+        user.setFirstName(request.getFirstName());
+        user.setLastName(request.getLastName());
+        // Set roles
+        Set<Role> roles = new HashSet<>();
+        roles.add(Role.USER);
+        user.setRoles(roles);
+        user.setAuthProvider(AuthProvider.LOCAL);
+        user.setEnabled(false);
+        User savedUser = userRepository.save(user);
+        // Sinh token xác thực
+        String token = UUID.randomUUID().toString();
+        VerificationToken verificationToken = new VerificationToken(token, savedUser, LocalDateTime.now().plusHours(24));
+        verificationTokenRepository.save(verificationToken);
+        // Gửi email xác thực
+        String verifyLink = userBaseUrl + "/verify?token=" + token;
+        String htmlContent = String.format(
+            """
+                <html>
+                <body>
+                    <h2>Xác nhận đăng ký tài khoản</h2>
+                    <p>Cảm ơn bạn đã đăng ký tài khoản tại XOXO Social Media.</p>
+                    <p>Vui lòng xác nhận email bằng cách bấm vào link sau:</p>
+                    <p><a href=\"%s\" style=\"background-color: #4CAF50; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;\">Xác nhận tài khoản</a></p>
+                    <p>Hoặc copy link này: <a href=\"%s\">%s</a></p>
+                    <p><b>Token:</b> <span style=\"color: #d32f2f;\">%s</span></p>
+                    <p>Link có hiệu lực trong 24 giờ.</p>
+                    <p>Trân trọng,<br>Team XOXO</p>
+                </body>
+                </html>
+            """,
+            verifyLink, verifyLink, verifyLink, token);
+        MailMessage mailMessage = new MailMessage(
+            savedUser.getEmail(),
+            "Xác nhận đăng ký tài khoản",
+            htmlContent);
+        mailProducer.sendMail(mailMessage);
+        return "Đăng ký thành công! Vui lòng kiểm tra email để xác thực tài khoản.";
+    }
+
+    @Override
+    public String verifyAccount(String token) {
+        Optional<VerificationToken> optionalToken = verificationTokenRepository.findByToken(token);
+        if (optionalToken.isEmpty()) {
+            throw new NotFoundException("Token không hợp lệ hoặc đã hết hạn.");
+        }
+        VerificationToken verificationToken = optionalToken.get();
+        if (verificationToken.getExpiryDate().isBefore(LocalDateTime.now())) {
+            throw new ServiceException("Token đã hết hạn.");
+        }
+        User user = verificationToken.getUser();
+        user.setEnabled(true);
+        userRepository.save(user);
+        verificationTokenRepository.delete(verificationToken);
+        return "Xác thực tài khoản thành công. Bạn có thể đăng nhập!";
     }
 }

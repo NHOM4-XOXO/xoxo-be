@@ -4,11 +4,15 @@ import java.util.List;
 import java.util.Set;
 
 import com.nhom4.xoxo.dto.req.ForgotPasswordRequest;
+import com.nhom4.xoxo.dto.req.LoginRequest;
 import com.nhom4.xoxo.dto.req.RegisterRequest;
 import com.nhom4.xoxo.dto.req.ResetPasswordRequest;
+import com.nhom4.xoxo.dto.res.LoginResponse;
 import com.nhom4.xoxo.dto.res.UserResponseProjection;
 import com.nhom4.xoxo.entity.Role;
 import com.nhom4.xoxo.entity.User;
+
+import jakarta.servlet.http.HttpServletResponse;
 
 public interface UserService {
     User registerUser(RegisterRequest request);
@@ -25,4 +29,7 @@ public interface UserService {
     User createAdminUser(String email, String password, String firstName, String lastName);
     void forgotPassword(ForgotPasswordRequest request);
     void resetPassword(ResetPasswordRequest request);
+    LoginResponse login(LoginRequest request ,HttpServletResponse response);
+    String register(RegisterRequest request);
+    String verifyAccount(String token);
 } 

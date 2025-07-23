@@ -1,13 +1,7 @@
 package com.nhom4.xoxo.controller;
 
-import java.time.LocalDateTime;
-import java.util.Optional;
-
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -21,10 +15,8 @@ import com.nhom4.xoxo.dto.req.ForgotPasswordRequest;
 import com.nhom4.xoxo.dto.req.LoginRequest;
 import com.nhom4.xoxo.dto.req.RegisterRequest;
 import com.nhom4.xoxo.dto.req.ResetPasswordRequest;
-import com.nhom4.xoxo.dto.res.LoginResponse;
-import com.nhom4.xoxo.entity.User;
-import com.nhom4.xoxo.entity.VerificationToken;
 import com.nhom4.xoxo.exception.NotFoundException;
+import com.nhom4.xoxo.exception.ServiceException;
 import com.nhom4.xoxo.repository.UserRepository;
 import com.nhom4.xoxo.repository.VerificationTokenRepository;
 import com.nhom4.xoxo.security.JwtTokenProvider;
@@ -32,6 +24,7 @@ import com.nhom4.xoxo.service.UserService;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 
 @RestController
@@ -61,8 +54,8 @@ public class AuthController {
     )
     @PostMapping("/register")
     public ResponseEntity<WrapRes<?>> register(@RequestBody @Valid RegisterRequest request) {
-        userService.registerUser(request);
-        return ResponseEntity.ok(WrapRes.success("Đăng ký thành công! Vui lòng kiểm tra email để xác thực tài khoản."));
+    
+        return ResponseEntity.ok(WrapRes.success(userService.register(request)));
     }
 
     @Operation(
@@ -73,14 +66,9 @@ public class AuthController {
         }
     )
     @PostMapping("/login")
-    public ResponseEntity<WrapRes<?>> login(@RequestBody @Valid LoginRequest loginRequest) {
-        Authentication authentication = authenticationManager.authenticate(
-            new UsernamePasswordAuthenticationToken(loginRequest.getEmail(), loginRequest.getPassword())
-        );
-        SecurityContextHolder.getContext().setAuthentication(authentication);
-        String jwt = jwtTokenProvider.generateToken(authentication);
-        User user = userRepository.findByEmail(loginRequest.getEmail()).orElseThrow(() -> new NotFoundException("User not found"));
-        return ResponseEntity.ok(WrapRes.success(new LoginResponse(jwt, user.getEmail(), user.getRoles().toString())));
+    public ResponseEntity<WrapRes<?>> login(@RequestBody @Valid LoginRequest loginRequest, HttpServletResponse response) {
+       
+        return ResponseEntity.ok(WrapRes.success(userService.login(loginRequest, response)));
     }
 
     @Operation(
@@ -92,19 +80,13 @@ public class AuthController {
     )
     @GetMapping("/verify")
     public ResponseEntity<WrapRes<?>> verifyAccount(@RequestParam("token") String token) {
-        Optional<VerificationToken> optionalToken = verificationTokenRepository.findByToken(token);
-        if (optionalToken.isEmpty()) {
-            return ResponseEntity.status(401).body(WrapRes.error(WrapResStatus.UNAUTHORIZED, "Token không hợp lệ hoặc đã hết hạn."));
+        String message;
+        try {
+            message = userService.verifyAccount(token);
+        } catch (NotFoundException | ServiceException e) {
+            return ResponseEntity.status(401).body(WrapRes.error(WrapResStatus.UNAUTHORIZED, e.getMessage()));
         }
-        VerificationToken verificationToken = optionalToken.get();
-        if (verificationToken.getExpiryDate().isBefore(LocalDateTime.now())) {
-            return ResponseEntity.status(401).body(WrapRes.error(WrapResStatus.UNAUTHORIZED, "Token đã hết hạn."));
-        }
-        User user = verificationToken.getUser();
-        user.setEnabled(true);
-        userRepository.save(user);
-        verificationTokenRepository.delete(verificationToken);
-        return ResponseEntity.ok(WrapRes.success("Xác thực tài khoản thành công. Bạn có thể đăng nhập!"));
+        return ResponseEntity.ok(WrapRes.success(message));
     }
 
     // quen mat khau
