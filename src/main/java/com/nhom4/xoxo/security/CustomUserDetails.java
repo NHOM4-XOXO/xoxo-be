@@ -17,6 +17,7 @@ public class CustomUserDetails implements UserDetails {
     private String password;
     private boolean enabled;
     private boolean passwordSet;
+    
     private Collection<? extends GrantedAuthority> authorities;
 
     @Override

@@ -76,4 +76,7 @@ public class User extends BaseEntity {
     @Column(nullable = false)
     private boolean enabled = false;
 
+    @Column(nullable = false, unique = true, length = 30, name = "username")
+    private String username;
+
 }

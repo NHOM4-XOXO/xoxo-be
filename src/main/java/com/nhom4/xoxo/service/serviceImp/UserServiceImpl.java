@@ -1,5 +1,6 @@
 package com.nhom4.xoxo.service.serviceImp;
 
+import java.text.Normalizer;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.HashSet;
@@ -9,6 +10,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
+import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseCookie;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -26,6 +28,7 @@ import com.nhom4.xoxo.dto.req.MailMessage;
 import com.nhom4.xoxo.dto.req.RegisterRequest;
 import com.nhom4.xoxo.dto.req.ResetPasswordRequest;
 import com.nhom4.xoxo.dto.res.LoginResponse;
+import com.nhom4.xoxo.dto.res.UserResponse;
 import com.nhom4.xoxo.dto.res.UserResponseProjection;
 import com.nhom4.xoxo.entity.AuthProvider;
 import com.nhom4.xoxo.entity.Role;
@@ -53,16 +56,19 @@ public class UserServiceImpl implements UserService {
     private final AuthenticationManager authenticationManager;
     private final JwtTokenProvider jwtTokenProvider;
     private final UserDetailsService userDetailsService;
+    private final ModelMapper modelMapper;
 
     @Value("${fe.user.base-url}")
     String userBaseUrl;
     @Value("${fe.admin.base-url}")
     String adminBaseUrl;
 
+
+
     public UserServiceImpl(UserRepository userRepository, PasswordEncoder passwordEncoder, MailProducer mailProducer,
             VerificationTokenRepository verificationTokenRepository, RefreshTokenService refreshTokenService,
             AuthenticationManager authenticationManager, JwtTokenProvider jwtTokenProvider,
-            UserDetailsService userDetailsService) {
+            UserDetailsService userDetailsService, ModelMapper modelMapper) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.mailProducer = mailProducer;
@@ -71,12 +77,26 @@ public class UserServiceImpl implements UserService {
         this.authenticationManager = authenticationManager;
         this.jwtTokenProvider = jwtTokenProvider;
         this.userDetailsService = userDetailsService;
+        this.modelMapper = modelMapper;
+    }
+    public static String toSlug(String input) {
+        String normalized = Normalizer.normalize(input, Normalizer.Form.NFD);
+        String slug = normalized.replaceAll("\\p{InCombiningDiacriticalMarks}+", "");
+        slug = slug.replaceAll("[^a-zA-Z0-9]", ""); 
+        return slug.toLowerCase();
+    }
+    public String generateUsername(String firstName, String lastName) {
+        String username = firstName.toLowerCase() + lastName.toLowerCase();
+        if (userRepository.existsByUsername(username)) {
+            username = username + UUID.randomUUID().toString().substring(0, 4);
+        }
+        return username;
     }
 
     @Override
-    public User registerUser(RegisterRequest request) {
+    public UserResponse registerUser(RegisterRequest request) {
         if (userRepository.existsByEmail(request.getEmail())) {
-            throw new RuntimeException("Email already exists");
+            throw new ServiceException("Email already exists");
         }
         User user = new User();
         user.setEmail(request.getEmail());
@@ -88,15 +108,23 @@ public class UserServiceImpl implements UserService {
         roles.add(Role.USER);
         user.setRoles(roles);
 
+        String username = generateUsername(toSlug(request.getFirstName()), toSlug(request.getLastName()));
+        while (userRepository.existsByUsername(username)) {
+            username = generateUsername(toSlug(request.getFirstName()), toSlug(request.getLastName()));
+        }
+        user.setUsername(username);
+
         user.setAuthProvider(AuthProvider.LOCAL);
         user.setEnabled(false);
 
         User savedUser = userRepository.save(user);
+        UserResponse userResponse = modelMapper.map(savedUser, UserResponse.class);
 
         // Sinh token xác thực
         String token = UUID.randomUUID().toString();
+        String type = "REGISTER";
         VerificationToken verificationToken = new VerificationToken(token, savedUser,
-                LocalDateTime.now().plusHours(24));
+                LocalDateTime.now().plusHours(24), type);
         verificationTokenRepository.save(verificationToken);
 
         // Gửi email xác thực
@@ -123,7 +151,7 @@ public class UserServiceImpl implements UserService {
                 "Xác nhận đăng ký tài khoản",
                 htmlContent);
         mailProducer.sendMail(mailMessage);
-        return savedUser;
+        return userResponse;
     }
 
     @Override
@@ -152,6 +180,13 @@ public class UserServiceImpl implements UserService {
             }
             return targetUser;
         }
+        if(currentUser.getRoles().contains(Role.USER)){
+            if (targetUser.getId().equals(currentUser.getId())) {
+                return targetUser;
+            }
+            throw new ForbiddenException("You do not have permission to view this user");
+        }
+        
         throw new ForbiddenException("You do not have permission to view this user");
     }
 
@@ -176,6 +211,12 @@ public class UserServiceImpl implements UserService {
             }
 
             return userRepository.save(user);
+        }
+        if(currentUser.getRoles().contains(Role.USER)){
+            if (targetUser.getId().equals(currentUser.getId())) {
+                return userRepository.save(user);
+            }
+            throw new ForbiddenException("You do not have permission to view this user");
         }
         throw new ForbiddenException("You do not have permission to update this user");
     }
@@ -294,7 +335,7 @@ public class UserServiceImpl implements UserService {
     @Override
     public User createAdminUser(String email, String password, String firstName, String lastName) {
         if (userRepository.existsByEmail(email)) {
-            throw new RuntimeException("Email already exists");
+            throw new ServiceException("Email already exists");
         }
 
         User user = new User();
@@ -325,7 +366,8 @@ public class UserServiceImpl implements UserService {
             throw new NotFoundException("User not found");
         }
         String token = UUID.randomUUID().toString();
-        VerificationToken verificationToken = new VerificationToken(token, user, LocalDateTime.now().plusHours(1));
+        String type = "FORGOT_PASSWORD";
+        VerificationToken verificationToken = new VerificationToken(token, user, LocalDateTime.now().plusHours(1), type);
         verificationTokenRepository.save(verificationToken);
         Boolean isAdmin = user.getRoles().contains(Role.ADMIN);
         String baseUrl = isAdmin ? adminBaseUrl : userBaseUrl;
@@ -357,7 +399,7 @@ public class UserServiceImpl implements UserService {
     @Override
     public void resetPassword(ResetPasswordRequest request) {
 
-        VerificationToken verificationToken = verificationTokenRepository.findByToken(request.getToken())
+        VerificationToken verificationToken = verificationTokenRepository.findByTokenAndType(request.getToken(), "FORGOT_PASSWORD")
                 .orElseThrow(() -> new NotFoundException("Token not found"));
         if (verificationToken == null) {
             throw new NotFoundException("Token not found");
@@ -390,7 +432,7 @@ public class UserServiceImpl implements UserService {
         String refreshToken = UUID.randomUUID().toString();
 
         // 5. Lưu refreshToken vào Redis (7 ngày)
-        refreshTokenService.saveRefreshToken( refreshToken,user.getEmail().toString(), 7, TimeUnit.DAYS);
+        refreshTokenService.saveRefreshToken(refreshToken, user.getEmail().toString(), 7, TimeUnit.DAYS);
 
         // 6. Set refreshToken vào HttpOnly cookie
         ResponseCookie cookie = ResponseCookie.from("refreshToken", refreshToken)
@@ -406,58 +448,10 @@ public class UserServiceImpl implements UserService {
         return new LoginResponse(accessToken, user.getEmail(), user.getRoles().toString());
     }
 
-    @Override
-    public String register(RegisterRequest request) {
-        if (userRepository.existsByEmail(request.getEmail())) {
-            throw new RuntimeException("Email already exists");
-        }
-        User user = new User();
-        user.setEmail(request.getEmail());
-        user.setPassword(passwordEncoder.encode(request.getPassword()));
-        user.setFirstName(request.getFirstName());
-        user.setLastName(request.getLastName());
-        // Set roles
-        Set<Role> roles = new HashSet<>();
-        roles.add(Role.USER);
-        user.setRoles(roles);
-        user.setAuthProvider(AuthProvider.LOCAL);
-        user.setEnabled(false);
-        user.setPasswordSet(true);
-        User savedUser = userRepository.save(user);
-        // Sinh token xác thực
-        String token = UUID.randomUUID().toString();
-        VerificationToken verificationToken = new VerificationToken(token, savedUser,
-                LocalDateTime.now().plusHours(24));
-        verificationTokenRepository.save(verificationToken);
-        // Gửi email xác thực
-        String verifyLink = userBaseUrl + "/verify?token=" + token;
-        String htmlContent = String.format(
-                """
-                            <html>
-                            <body>
-                                <h2>Xác nhận đăng ký tài khoản</h2>
-                                <p>Cảm ơn bạn đã đăng ký tài khoản tại XOXO Social Media.</p>
-                                <p>Vui lòng xác nhận email bằng cách bấm vào link sau:</p>
-                                <p><a href=\"%s\" style=\"background-color: #4CAF50; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;\">Xác nhận tài khoản</a></p>
-                                <p>Hoặc copy link này: <a href=\"%s\">%s</a></p>
-                                <p><b>Token:</b> <span style=\"color: #d32f2f;\">%s</span></p>
-                                <p>Link có hiệu lực trong 24 giờ.</p>
-                                <p>Trân trọng,<br>Team XOXO</p>
-                            </body>
-                            </html>
-                        """,
-                verifyLink, verifyLink, verifyLink, token);
-        MailMessage mailMessage = new MailMessage(
-                savedUser.getEmail(),
-                "Xác nhận đăng ký tài khoản",
-                htmlContent);
-        mailProducer.sendMail(mailMessage);
-        return "Đăng ký thành công! Vui lòng kiểm tra email để xác thực tài khoản.";
-    }
 
     @Override
     public String verifyAccount(String token) {
-        Optional<VerificationToken> optionalToken = verificationTokenRepository.findByToken(token);
+        Optional<VerificationToken> optionalToken = verificationTokenRepository.findByTokenAndType(token, "REGISTER");
         if (optionalToken.isEmpty()) {
             throw new NotFoundException("Token không hợp lệ hoặc đã hết hạn.");
         }
@@ -491,10 +485,9 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public boolean changePassword(String oldPassword, String newPassword, UserDetails currentUser) {
-        
+
         User user = userRepository.findByEmail(currentUser.getUsername())
                 .orElseThrow(() -> new NotFoundException("User not found"));
-
 
         // Nếu passwordSet = false thì không cần oldPassword
         if (!user.isPasswordSet()) {
@@ -563,6 +556,55 @@ public class UserServiceImpl implements UserService {
     @Override
     public boolean canCreateAdminUser(User currentUser) {
         return isOwner(currentUser);
+    }
+
+    @Override
+    public boolean canUpdateUsername(User currentUser) {
+        boolean existsByUsername = userRepository.existsByUsername(currentUser.getUsername());
+        if (existsByUsername) {
+            throw new ServiceException("Username already exists");
+        }
+        return true;
+
+    }
+
+    @Override
+    public boolean updateUsername(User currentUser, String username) {
+        if (canUpdateUsername(currentUser)) {
+            currentUser.setUsername(username);
+            userRepository.save(currentUser);
+            return true;
+        }
+        return false;
+    }
+    @Override
+    public boolean updateAvatar(User currentUser, String avatar) {
+       
+        currentUser.setAvatarUrl(avatar);
+        userRepository.save(currentUser);
+        return true;
+    }
+    
+    @Override
+    public boolean updateCover(User currentUser, String cover) {
+        currentUser.setCoverUrl(cover);
+        userRepository.save(currentUser);
+        return true;
+    }
+    @Override
+    public Optional<User> findByUsername(String username) {
+        User user = userRepository.findByUsername(username).orElse(null);
+        if(userRepository.existsByUsername(username)){
+            if(userRepository.findByUsername(username).get().isEnabled()){
+                return userRepository.findByUsername(username);
+
+            }
+            if(user.getRoles().contains(Role.ADMIN) || user.getRoles().contains(Role.OWNER)){
+                throw new NotFoundException("User not found");
+            }
+            throw new NotFoundException("User not found");
+        }
+        throw new NotFoundException("User not found");
     }
 
 }

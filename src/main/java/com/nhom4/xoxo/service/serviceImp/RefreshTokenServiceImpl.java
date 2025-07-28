@@ -9,7 +9,7 @@ import org.springframework.stereotype.Service;
 import com.nhom4.xoxo.service.RefreshTokenService;
 
 @Service
-public class RedisRefreshTokenService implements RefreshTokenService {
+public class RefreshTokenServiceImpl implements RefreshTokenService {
     @Autowired
     private StringRedisTemplate redisTemplate;
     private final String PREFIX = "refresh_token:";

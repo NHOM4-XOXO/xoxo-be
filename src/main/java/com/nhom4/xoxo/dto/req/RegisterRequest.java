@@ -21,10 +21,10 @@ public class RegisterRequest {
     @Pattern(regexp = "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*?&])[A-Za-z\\d@$!%*?&]{8,}$", message = "Mật khẩu phải có ít nhất 8 ký tự, bao gồm chữ cái viết hoa, chữ cái viết thường, số và ký tự đặc biệt")
     private String password;
     @NotBlank(message = "Tên không được để trống")
-    @Pattern(regexp = "^[a-zA-Z]+$", message = "Tên không được chứa số hoặc ký tự đặc biệt")
+    @Pattern(regexp = "^[\\p{L} ]+$", message = "Tên không được chứa số hoặc ký tự đặc biệt")
     private String firstName;
     @NotBlank(message = "Họ không được để trống")
-    @Pattern(regexp = "^[a-zA-Z]+$", message = "Họ không được chứa số hoặc ký tự đặc biệt")
+    @Pattern(regexp = "^[\\p{L} ]+$", message = "Họ không được chứa số hoặc ký tự đặc biệt")
     private String lastName;
 
  

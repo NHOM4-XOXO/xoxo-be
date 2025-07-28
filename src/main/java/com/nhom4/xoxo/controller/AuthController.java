@@ -59,7 +59,7 @@ public class AuthController {
     @PostMapping("/register")
     public ResponseEntity<WrapRes<?>> register(@RequestBody @Valid RegisterRequest request) {
     
-        return ResponseEntity.ok(WrapRes.success(userService.register(request)));
+        return ResponseEntity.ok(WrapRes.success(userService.registerUser(request)));
     }
 
     @Operation(

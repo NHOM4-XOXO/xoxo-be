@@ -19,4 +19,5 @@ public interface UserResponseProjection {
     LocalDateTime getCreatedAt();
     LocalDateTime getUpdatedAt();
     boolean getEnabled();
+    String getUsername();
 }

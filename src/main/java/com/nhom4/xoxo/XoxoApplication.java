@@ -40,8 +40,9 @@ public class XoxoApplication {
 				owner.setEnabled(true);
 				owner.setCreatedAt(LocalDateTime.now());
 				owner.setUpdatedAt(LocalDateTime.now());
+				owner.setUsername("owner");
 				userRepository.save(owner);
-				System.out.println("[INIT] Created OWNER account: " + ownerEmail);
+				
 			}
 			// ADMIN
 			String adminEmail = "admin@xoxo.com";
@@ -58,8 +59,9 @@ public class XoxoApplication {
 				admin.setEnabled(true);
 				admin.setCreatedAt(LocalDateTime.now());
 				admin.setUpdatedAt(LocalDateTime.now());
+				admin.setUsername("admin");
 				userRepository.save(admin);
-				System.out.println("[INIT] Created ADMIN account: " + adminEmail);
+				
 			}
 			// USER
 			String userEmail = "user@xoxo.com";
@@ -76,8 +78,9 @@ public class XoxoApplication {
 				user.setEnabled(true);
 				user.setCreatedAt(LocalDateTime.now());
 				user.setUpdatedAt(LocalDateTime.now());
+				user.setUsername("user");
 				userRepository.save(user);
-				System.out.println("[INIT] Created USER account: " + userEmail);
+				
 			}
 		};
 	}

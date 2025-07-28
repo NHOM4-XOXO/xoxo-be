@@ -24,4 +24,8 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     @Query(value = "SELECT id, email, first_name AS firstName, last_name AS lastName, roles, date_of_birth AS dateOfBirth, gender, avatar_url AS avatarUrl, cover_url AS coverUrl, bio, created_at AS createdAt, updated_at AS updatedAt, enabled FROM view_users_exclude_owner", nativeQuery = true)
     List<UserResponseProjection> findAllUserResponsesOwner();
+
+    boolean existsByUsername(String username);
+
+    Optional<User> findByUsername(String username);
 }
