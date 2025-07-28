@@ -21,6 +21,7 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.nhom4.xoxo.dto.req.ForgotPasswordRequest;
 import com.nhom4.xoxo.dto.req.LoginRequest;
@@ -94,6 +95,7 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
+    @Transactional
     public UserResponse registerUser(RegisterRequest request) {
         if (userRepository.existsByEmail(request.getEmail())) {
             throw new ServiceException("Email already exists");
@@ -150,7 +152,13 @@ public class UserServiceImpl implements UserService {
                 savedUser.getEmail(),
                 "Xác nhận đăng ký tài khoản",
                 htmlContent);
-        mailProducer.sendMail(mailMessage);
+        
+        try {
+            mailProducer.sendMail(mailMessage);
+        } catch (Exception e) {
+            throw new ServiceException("Đăng ký thất bại do gửi mail xác thực không thành công. Vui lòng thử lại sau.");
+        }
+        
         return userResponse;
     }
 
