@@ -22,8 +22,10 @@ public class RegisterRequest {
     private String password;
     @NotBlank(message = "Tên không được để trống")
     @Pattern(regexp = "^[\\p{L} ]+$", message = "Tên không được chứa số hoặc ký tự đặc biệt")
+    @Schema(example = "John", description = "Tên của người dùng")
     private String firstName;
     @NotBlank(message = "Họ không được để trống")
+    @Schema(example = "Doe", description = "Họ của người dùng")
     @Pattern(regexp = "^[\\p{L} ]+$", message = "Họ không được chứa số hoặc ký tự đặc biệt")
     private String lastName;
 
