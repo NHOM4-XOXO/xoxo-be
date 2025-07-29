@@ -32,3 +32,9 @@ build/
 ### VS Code ###
 .vscode/
 .env
+
+generate-migration-for-entity.sh
+
+simple-entity-workflow.md
+
+.gitignore
