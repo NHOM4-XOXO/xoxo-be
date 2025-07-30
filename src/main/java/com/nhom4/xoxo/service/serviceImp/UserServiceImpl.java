@@ -131,19 +131,19 @@ public class UserServiceImpl implements UserService {
         String verifyLink = userBaseUrl + "/verify?token=" + token;
         String htmlContent = String.format(
                 """
-                        <html>
-                        <body>
-                            <h2>Xác nhận đăng ký tài khoản</h2>
-                            <p>Cảm ơn bạn đã đăng ký tài khoản tại XOXO Social Media.</p>
-                            <p>Vui lòng xác nhận email bằng cách bấm vào link sau:</p>
-                            <p><a href=\"%s\" style=\"background-color: #4CAF50; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;\">Xác nhận tài khoản</a></p>
-                            <p>Hoặc copy link này: <a href=\"%s\">%s</a></p>
-                            <p><b>Token:</b> <span style=\"color: #d32f2f;\">%s</span></p>
-                            <p>Link có hiệu lực trong 24 giờ.</p>
-                            <p>Trân trọng,<br>Team XOXO</p>
-                        </body>
-                        </html>
-                        """,
+                <html>
+                    <body>
+                        <h2>Xác nhận đăng ký tài khoản</h2>
+                        <p>Cảm ơn bạn đã đăng ký tài khoản tại XOXO Social Media.</p>
+                        <p>Vui lòng xác nhận email bằng cách bấm vào link sau:</p>
+                        <p><a href=\"%s\" style=\"background-color: #4CAF50; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;\">Xác nhận tài khoản</a></p>
+                        <p>Hoặc copy link này: <a href=\"%s\">%s</a></p>
+                        <p><b>Token:</b> <span style=\"color: #d32f2f;\">%s</span></p>
+                        <p>Link có hiệu lực trong 24 giờ.</p>
+                        <p>Trân trọng,<br>Team XOXO</p>
+                    </body>
+                </html>
+                """,
                 verifyLink, verifyLink, verifyLink, token);
 
         MailMessage mailMessage = new MailMessage(
