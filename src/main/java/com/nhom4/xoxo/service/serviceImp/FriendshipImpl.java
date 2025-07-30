@@ -68,7 +68,6 @@ public class FriendshipImpl implements FriendshipService {
 
     @Override
     public Friendship acceptFriendship(Long friendshipId, Long userId) {
-        // TODO Auto-generated method stub
         Friendship friendship = friendshipRepository.findById(friendshipId)
                 .orElseThrow(() -> new ServiceException("Friendship not found"));
         
@@ -88,7 +87,6 @@ public class FriendshipImpl implements FriendshipService {
 
     @Override
     public Friendship rejectFriendship(Long friendshipId, Long userId) {
-        // TODO Auto-generated method stub
         Friendship friendship = friendshipRepository.findById(friendshipId)
                 .orElseThrow(() -> new ServiceException("Friendship not found"));
         
@@ -129,31 +127,26 @@ public class FriendshipImpl implements FriendshipService {
 
     @Override
     public List<Friendship> getPendingFriendships(Long userId) {
-        // TODO Auto-generated method stub
         throw new UnsupportedOperationException("Unimplemented method 'getPendingFriendships'");
     }
 
     @Override
     public List<Friendship> getSentFriendships(Long userId) {
-        // TODO Auto-generated method stub
         throw new UnsupportedOperationException("Unimplemented method 'getSentFriendships'");
     }
 
     @Override
     public boolean areFriends(Long userId1, Long userId2) {
-        // TODO Auto-generated method stub
         throw new UnsupportedOperationException("Unimplemented method 'areFriends'");
     }
 
     @Override
     public boolean hasPendingRequest(Long userId1, Long userId2) {
-        // TODO Auto-generated method stub
         throw new UnsupportedOperationException("Unimplemented method 'hasPendingRequest'");
     }
 
     @Override
     public Friendship cancelFriendship(Long friendshipId, Long userId) {
-        // TODO Auto-generated method stub
         Friendship friendship = friendshipRepository.findById(friendshipId)
                 .orElseThrow(() -> new ServiceException("Friendship not found"));
         
@@ -173,7 +166,6 @@ public class FriendshipImpl implements FriendshipService {
 
     @Override
     public Friendship cancelFriendshipRequest(Long friendshipId, Long userId) {
-        // TODO Auto-generated method stub
         Friendship friendship = friendshipRepository.findById(friendshipId)
                 .orElseThrow(() -> new ServiceException("Friendship not found"));
         

@@ -1,7 +1,6 @@
 package com.nhom4.xoxo.controller;
 
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.CookieValue;
@@ -21,9 +20,6 @@ import com.nhom4.xoxo.dto.req.RegisterRequest;
 import com.nhom4.xoxo.dto.req.ResetPasswordRequest;
 import com.nhom4.xoxo.exception.NotFoundException;
 import com.nhom4.xoxo.exception.ServiceException;
-import com.nhom4.xoxo.repository.UserRepository;
-import com.nhom4.xoxo.repository.VerificationTokenRepository;
-import com.nhom4.xoxo.security.JwtTokenProvider;
 import com.nhom4.xoxo.service.UserService;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -34,19 +30,15 @@ import jakarta.validation.Valid;
 @RestController
 @RequestMapping("/api/auth")
 public class AuthController {
-    private final VerificationTokenRepository verificationTokenRepository;
-    private final UserRepository userRepository;
+
     private final UserService userService;
-    private final AuthenticationManager authenticationManager;
-    private final JwtTokenProvider jwtTokenProvider;
+  
 
    
-    public AuthController(VerificationTokenRepository verificationTokenRepository, UserRepository userRepository, UserService userService, AuthenticationManager authenticationManager, JwtTokenProvider jwtTokenProvider) {
-        this.verificationTokenRepository = verificationTokenRepository;
-        this.userRepository = userRepository;
+    public AuthController(UserService userService) {
+    
         this.userService = userService;
-        this.authenticationManager = authenticationManager;
-        this.jwtTokenProvider = jwtTokenProvider;
+      
     }
 
     @Operation(

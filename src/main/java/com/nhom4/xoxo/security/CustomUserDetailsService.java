@@ -1,7 +1,7 @@
 package com.nhom4.xoxo.security;
 
-import com.nhom4.xoxo.entity.User;
-import com.nhom4.xoxo.repository.UserRepository;
+import java.util.stream.Collectors;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -9,8 +9,8 @@ import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 
-import java.util.Collections;
-import java.util.stream.Collectors;
+import com.nhom4.xoxo.entity.User;
+import com.nhom4.xoxo.repository.UserRepository;
 
 @Service
 public class CustomUserDetailsService implements UserDetailsService {

@@ -8,6 +8,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
+import org.springframework.lang.NonNull;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -52,6 +53,13 @@ public class HandleException extends ResponseEntityExceptionHandler {
                 new HttpHeaders(), HttpStatus.FORBIDDEN, request);
     }
 
+    @ExceptionHandler(PostException.class)
+    public ResponseEntity<Object> handlePostException(PostException ex, WebRequest request) {
+        log.error("HandleException.handlePostException", ex);
+        return handleExceptionInternal(ex, WrapRes.error(WrapResStatus.BAD_REQUEST, ex.getMessage()),
+                new HttpHeaders(), HttpStatus.BAD_REQUEST, request);
+    }
+
     @ExceptionHandler(JwtException.class)
     public ResponseEntity<Object> handleJwtException(JwtException ex, WebRequest request) {
         log.error("HandleException.handleJwtException");
@@ -61,10 +69,10 @@ public class HandleException extends ResponseEntityExceptionHandler {
 
     @Override
     protected ResponseEntity<Object> handleHttpMessageNotReadable(
-            org.springframework.http.converter.HttpMessageNotReadableException ex,
-            HttpHeaders headers,
-            HttpStatusCode status,
-            WebRequest request) {
+            @NonNull org.springframework.http.converter.HttpMessageNotReadableException ex,
+            @NonNull HttpHeaders headers,
+            @NonNull HttpStatusCode status,
+            @NonNull WebRequest request) {
         String message = "Request body không hợp lệ hoặc thiếu dữ liệu.";
         Throwable cause = ex.getCause();
         if (cause instanceof com.fasterxml.jackson.databind.exc.InvalidFormatException) {
@@ -90,10 +98,10 @@ public class HandleException extends ResponseEntityExceptionHandler {
 
     @Override
     protected ResponseEntity<Object> handleMethodArgumentNotValid(
-            MethodArgumentNotValidException ex,
-            HttpHeaders headers,
-            HttpStatusCode status,
-            WebRequest request) {
+            @NonNull MethodArgumentNotValidException ex,
+            @NonNull HttpHeaders headers,
+            @NonNull HttpStatusCode status,
+            @NonNull WebRequest request) {
         Map<String, String> errors = new HashMap<>();
         ex.getBindingResult().getFieldErrors().forEach(error -> {
             errors.put(error.getField(), error.getDefaultMessage());
@@ -109,16 +117,23 @@ public class HandleException extends ResponseEntityExceptionHandler {
    
 
     @ExceptionHandler(GenericJDBCException.class)
-public ResponseEntity<?> handleGenericJDBCException(GenericJDBCException ex) {
-    String message = ex.getSQLException().getMessage();
-    if (message != null && message.contains("Chỉ user gốc mới được phép có role OWNER")) {
+    public ResponseEntity<?> handleGenericJDBCException(GenericJDBCException ex) {
+        String message = ex.getSQLException().getMessage();
+        if (message != null && message.contains("Chỉ user gốc mới được phép có role OWNER")) {
+            return ResponseEntity
+                    .status(HttpStatus.BAD_REQUEST)
+                    .body(WrapRes.error(WrapResStatus.BAD_REQUEST, "Chỉ user gốc mới được phép có role OWNER!"));
+        }
         return ResponseEntity
                 .status(HttpStatus.BAD_REQUEST)
-                .body(WrapRes.error(WrapResStatus.BAD_REQUEST, "Chỉ user gốc mới được phép có role OWNER!"));
+                .body(WrapRes.error(WrapResStatus.BAD_REQUEST, "Lỗi dữ liệu!"));
     }
-    return ResponseEntity
-            .status(HttpStatus.BAD_REQUEST)
-            .body(WrapRes.error(WrapResStatus.BAD_REQUEST, "Lỗi dữ liệu!"));
-}
 
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<Object> handleGenericException(Exception ex, WebRequest request) {
+        log.error("HandleException.handleGenericException", ex);
+        return handleExceptionInternal(ex, 
+                WrapRes.error(WrapResStatus.SERVICE_ERROR, "Đã xảy ra lỗi không mong muốn. Vui lòng thử lại sau."),
+                new HttpHeaders(), HttpStatus.INTERNAL_SERVER_ERROR, request);
+    }
 }

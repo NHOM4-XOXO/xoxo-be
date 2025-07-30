@@ -1,14 +1,12 @@
 package com.nhom4.xoxo.kafka;
 
 import org.springframework.kafka.annotation.KafkaListener;
+import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.mail.javamail.MimeMessageHelper;
+import org.springframework.mail.javamail.MimeMessagePreparator;
 import org.springframework.stereotype.Service;
 
 import com.nhom4.xoxo.dto.req.MailMessage;
-
-import org.springframework.mail.javamail.JavaMailSender;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.mail.javamail.MimeMessageHelper;
-import org.springframework.mail.javamail.MimeMessagePreparator;
 
 import jakarta.mail.internet.InternetAddress;
 
@@ -16,7 +14,7 @@ import jakarta.mail.internet.InternetAddress;
 public class MailConsumer {
     private final JavaMailSender mailSender;
 
-    @Autowired
+    
     public MailConsumer(JavaMailSender mailSender) {
         this.mailSender = mailSender;
     }
