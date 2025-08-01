@@ -1,15 +1,19 @@
 package com.nhom4.xoxo.entity;
 
-import java.time.LocalDate;
-
 import com.nhom4.xoxo.enums.MediaRoomTargetType;
-import com.nhom4.xoxo.enums.MediaType;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.ForeignKey;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -17,7 +21,10 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 @Entity
-@Table(name = "media_room")
+@Table(name = "media_room", indexes = {
+    @Index(name = "idx_media_room_target", columnList = "target_id, target_type"),
+    @Index(name = "idx_media_room_media", columnList = "media_id")
+})
 @AllArgsConstructor
 @NoArgsConstructor
 @Data
@@ -27,13 +34,15 @@ public class MediaRoom extends BaseEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false)
-    private Long media_id;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "media_id", nullable = false, foreignKey = @ForeignKey(name = "fk_media_room_media"))
+    private Media media;
 
     @Column(nullable = false)
-    private Long target_id;
+    private Long targetId;
 
     @Column(nullable = false)
-    private MediaRoomTargetType target_type;
+    @Enumerated(EnumType.STRING)
+    private MediaRoomTargetType targetType;
 
 }

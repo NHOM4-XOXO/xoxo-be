@@ -1,11 +1,11 @@
 package com.nhom4.xoxo.entity;
 
-import java.time.LocalDate;
-
 import com.nhom4.xoxo.enums.MediaType;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -27,9 +27,10 @@ public class Media extends BaseEntity {
     private Long id;
 
     @Column(nullable = false, unique = true)
-    private String media_url;
+    private String mediaUrl;
 
     @Column(nullable = false)
-    private MediaType media_type;
+    @Enumerated(EnumType.STRING)
+    private MediaType mediaType;
 
 }
