@@ -65,10 +65,6 @@ public class Post extends BaseEntity {
     @Builder.Default
     private List<SharePost> shares = new ArrayList<>();
 
-
-
-
-
     @Column(nullable = false)
     @Builder.Default
     private Integer likeCount = 0;
@@ -106,6 +102,8 @@ public class Post extends BaseEntity {
     @Column(nullable = false)
     @Builder.Default
     private boolean allowShares = true;
+
+    
 
     @Override
     public int hashCode() {

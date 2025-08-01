@@ -8,6 +8,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import com.nhom4.xoxo.entity.Media;
+import com.nhom4.xoxo.entity.User;
 import com.nhom4.xoxo.enums.MediaType;
 
 @Repository
@@ -33,4 +34,7 @@ public interface MediaRepository extends JpaRepository<Media, Long> {
     // Đếm media theo type
     @Query("SELECT COUNT(m) FROM Media m WHERE m.mediaType = :mediaType")
     Long countByMediaType(@Param("mediaType") MediaType mediaType);
+    
+    // Tìm media theo user upload
+    List<Media> findByUploadedBy(User uploadedBy);
 } 

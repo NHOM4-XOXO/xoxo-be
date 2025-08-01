@@ -1,6 +1,7 @@
 package com.nhom4.xoxo.repository;
 
 import java.util.List;
+import java.util.Optional;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -16,6 +17,7 @@ import com.nhom4.xoxo.enums.PostType;
 
 @Repository
 public interface PostRepository extends JpaRepository<Post, Long> {
+    Optional<Post> findById(Long postId);
     
     // Tìm posts theo author
     List<Post> findByAuthor(User author);
@@ -33,7 +35,8 @@ public interface PostRepository extends JpaRepository<Post, Long> {
     List<Post> findByParentPost(Post parentPost);
     
     // Tìm posts public
-    List<Post> findByIsPublicTrue();
+    @Query("SELECT p FROM Post p WHERE p.isPublic = true AND p.status = 'ACTIVE'")
+    List<Optional<Post>> findByIsPublicTrue();
     
     // Tìm posts theo author và public
     List<Post> findByAuthorAndIsPublicTrue(User author);
