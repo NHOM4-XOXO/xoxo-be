@@ -48,6 +48,8 @@ public class VerificationToken {
     public void setToken(String token) { this.token = token; }
     public User getUser() { return user; }
     public void setUser(User user) { this.user = user; }
+    public String getType() { return type; }
+    public void setType(String type) { this.type = type; }
     public LocalDateTime getExpiryDate() { return expiryDate; }
     public void setExpiryDate(LocalDateTime expiryDate) { this.expiryDate = expiryDate; }
 } 

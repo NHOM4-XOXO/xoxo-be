@@ -42,7 +42,9 @@ import com.nhom4.xoxo.kafka.MailProducer;
 import com.nhom4.xoxo.repository.UserRepository;
 import com.nhom4.xoxo.repository.VerificationTokenRepository;
 import com.nhom4.xoxo.security.JwtTokenProvider;
+import com.nhom4.xoxo.service.EmailService;
 import com.nhom4.xoxo.service.RefreshTokenService;
+import com.nhom4.xoxo.service.TokenService;
 import com.nhom4.xoxo.service.UserService;
 
 import jakarta.servlet.http.HttpServletResponse;
@@ -58,6 +60,8 @@ public class UserServiceImpl implements UserService {
     private final JwtTokenProvider jwtTokenProvider;
     private final UserDetailsService userDetailsService;
     private final ModelMapper modelMapper;
+    private final EmailService emailService;
+    private final TokenService tokenService;
 
     @Value("${fe.user.base-url}")
     String userBaseUrl;
@@ -69,7 +73,7 @@ public class UserServiceImpl implements UserService {
     public UserServiceImpl(UserRepository userRepository, PasswordEncoder passwordEncoder, MailProducer mailProducer,
             VerificationTokenRepository verificationTokenRepository, RefreshTokenService refreshTokenService,
             AuthenticationManager authenticationManager, JwtTokenProvider jwtTokenProvider,
-            UserDetailsService userDetailsService, ModelMapper modelMapper) {
+            UserDetailsService userDetailsService, ModelMapper modelMapper, EmailService emailService, TokenService tokenService) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.mailProducer = mailProducer;
@@ -79,6 +83,8 @@ public class UserServiceImpl implements UserService {
         this.jwtTokenProvider = jwtTokenProvider;
         this.userDetailsService = userDetailsService;
         this.modelMapper = modelMapper;
+        this.emailService = emailService;
+        this.tokenService = tokenService;
     }
     public static String toSlug(String input) {
         String normalized = Normalizer.normalize(input, Normalizer.Form.NFD);
@@ -366,21 +372,16 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
+    @Transactional
     public void forgotPassword(ForgotPasswordRequest request) {
-
-        User user = userRepository.findByEmail(request.getEmail())
-                .orElseThrow(() -> new NotFoundException("User not found"));
-        if (user == null) {
-            throw new NotFoundException("User not found");
-        }
-        String token = UUID.randomUUID().toString();
-        String type = "FORGOT_PASSWORD";
-        VerificationToken verificationToken = new VerificationToken(token, user, LocalDateTime.now().plusHours(1), type);
-        verificationTokenRepository.save(verificationToken);
+        // Sử dụng TokenService để tạo token (tự động xóa token cũ)
+        VerificationToken verificationToken = tokenService.createForgotPasswordToken(request.getEmail());
+        User user = verificationToken.getUser();
+        
         Boolean isAdmin = user.getRoles().contains(Role.ADMIN);
         String baseUrl = isAdmin ? adminBaseUrl : userBaseUrl;
 
-        String resetLink = baseUrl + "/reset-password?token=" + token;
+        String resetLink = baseUrl + "/reset-password?token=" + verificationToken.getToken();
         String htmlContent = """
                 <html>
                     <body>
@@ -394,32 +395,40 @@ public class UserServiceImpl implements UserService {
                         <p>Trân trọng,<br>Team XOXO</p>
                     </body>
                 </html>
-                            """
-                .formatted(resetLink, resetLink, resetLink, token);
+                                """
+                .formatted(resetLink, resetLink, resetLink, verificationToken.getToken());
 
         MailMessage mailMessage = new MailMessage(
                 user.getEmail(),
                 "Reset mật khẩu",
                 htmlContent);
-        mailProducer.sendMail(mailMessage);
+        
+        // Sử dụng EmailService để gửi mail với rollback
+        emailService.sendMailWithRollback(mailMessage, verificationToken);
     }
+    
+    @Override
+    @Transactional
+    public void regenerateForgotPassword(ForgotPasswordRequest request) {
+        // Gọi lại method forgotPassword vì logic giống hệt nhau
+        forgotPassword(request);
+    }
+    
+
 
     @Override
+    @Transactional
     public void resetPassword(ResetPasswordRequest request) {
-
-        VerificationToken verificationToken = verificationTokenRepository.findByTokenAndType(request.getToken(), "FORGOT_PASSWORD")
-                .orElseThrow(() -> new NotFoundException("Token not found"));
-        if (verificationToken == null) {
-            throw new NotFoundException("Token not found");
-        }
-        if (verificationToken.getExpiryDate().isBefore(LocalDateTime.now())) {
-            throw new ServiceException("Token expired");
-        }
+        // Sử dụng TokenService để validate token
+        VerificationToken verificationToken = tokenService.validateToken(request.getToken(), "FORGOT_PASSWORD");
+        
         User user = verificationToken.getUser();
         user.setPassword(passwordEncoder.encode(request.getNewPassword()));
         user.setUpdatedAt(LocalDateTime.now());
         userRepository.save(user);
-        verificationTokenRepository.delete(verificationToken);
+        
+        // Xóa token sau khi sử dụng
+        tokenService.deleteToken(verificationToken);
     }
 
     @Override
@@ -458,19 +467,18 @@ public class UserServiceImpl implements UserService {
 
 
     @Override
+    @Transactional
     public String verifyAccount(String token) {
-        Optional<VerificationToken> optionalToken = verificationTokenRepository.findByTokenAndType(token, "REGISTER");
-        if (optionalToken.isEmpty()) {
-            throw new NotFoundException("Token không hợp lệ hoặc đã hết hạn.");
-        }
-        VerificationToken verificationToken = optionalToken.get();
-        if (verificationToken.getExpiryDate().isBefore(LocalDateTime.now())) {
-            throw new ServiceException("Token đã hết hạn.");
-        }
+        // Sử dụng TokenService để validate token
+        VerificationToken verificationToken = tokenService.validateToken(token, "REGISTER");
+        
         User user = verificationToken.getUser();
         user.setEnabled(true);
         userRepository.save(user);
-        verificationTokenRepository.delete(verificationToken);
+        
+        // Xóa token sau khi sử dụng
+        tokenService.deleteToken(verificationToken);
+        
         return "Xác thực tài khoản thành công. Bạn có thể đăng nhập!";
     }
 

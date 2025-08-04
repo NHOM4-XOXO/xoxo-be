@@ -24,11 +24,13 @@ import com.nhom4.xoxo.service.UserService;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/api/auth")
+@Tag(name = "Authentication", description = "APIs cho đăng ký, đăng nhập, xác thực và quản lý mật khẩu")
 public class AuthController {
 
     private final UserService userService;
@@ -85,19 +87,22 @@ public class AuthController {
         return ResponseEntity.ok(WrapRes.success(message));
     }
 
-    // quen mat khau
     @Operation(
         summary = "Quên mật khẩu",
-        description = "Ai cũng có thể gọi. Gửi email để reset mật khẩu.",
+        description = "Gửi email reset password. Nếu user đã có token cũ, sẽ tạo token mới và vô hiệu hóa token cũ.",
         responses = {
-            @ApiResponse(responseCode = "200", description = "Gửi email reset mật khẩu thành công")
+            @ApiResponse(responseCode = "200", description = "Email reset password đã được gửi"),
+            @ApiResponse(responseCode = "404", description = "Email không tồn tại trong hệ thống"),
+            @ApiResponse(responseCode = "500", description = "Lỗi gửi email")
         }
     )
     @PostMapping("/forgot-password")
-    public ResponseEntity<WrapRes<?>> forgotPassword(@RequestBody @Valid ForgotPasswordRequest request) {
+    public ResponseEntity<WrapRes<String>> forgotPassword(@RequestBody @Valid ForgotPasswordRequest request) {
         userService.forgotPassword(request);
-        return ResponseEntity.ok(WrapRes.success("Gửi email reset mật khẩu thành công. Vui lòng kiểm tra email!"));
+        return ResponseEntity.ok(WrapRes.success("Email reset password đã được gửi"));
     }
+    
+
 
     // reset mat khau
     @Operation(

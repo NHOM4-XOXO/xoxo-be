@@ -34,6 +34,7 @@ public interface UserService {
    
     void resetPassword(ResetPasswordRequest request);
     void forgotPassword(ForgotPasswordRequest request);
+    void regenerateForgotPassword(ForgotPasswordRequest request);
     LoginResponse login(LoginRequest request, HttpServletResponse response);
     String refreshToken(String refreshToken);
     String verifyAccount(String token);

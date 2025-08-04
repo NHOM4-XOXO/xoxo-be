@@ -38,3 +38,9 @@ generate-migration-for-entity.sh
 simple-entity-workflow.md
 
 set-env.sh
+
+
+src/main/resources/application-*.properties
+
+# Ignore application properties files (contain sensitive data)
+src/main/resources/application-*.properties
