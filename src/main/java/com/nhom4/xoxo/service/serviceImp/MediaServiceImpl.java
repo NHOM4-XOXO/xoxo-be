@@ -5,6 +5,7 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.nhom4.xoxo.entity.Media;
@@ -16,6 +17,7 @@ import com.nhom4.xoxo.exception.NotFoundException;
 import com.nhom4.xoxo.exception.UnauthorizedException;
 import com.nhom4.xoxo.repository.MediaRepository;
 import com.nhom4.xoxo.repository.MediaRoomRepository;
+import com.nhom4.xoxo.service.CloudinaryService;
 import com.nhom4.xoxo.service.MediaService;
 
 @Service
@@ -26,13 +28,17 @@ public class MediaServiceImpl implements MediaService {
     
    
     private final MediaRoomRepository mediaRoomRepository;
+    
+    private final CloudinaryService cloudinaryService;
 
-    public MediaServiceImpl(MediaRepository mediaRepository, MediaRoomRepository mediaRoomRepository) {
+    public MediaServiceImpl(MediaRepository mediaRepository, MediaRoomRepository mediaRoomRepository, CloudinaryService cloudinaryService) {
         this.mediaRepository = mediaRepository;
         this.mediaRoomRepository = mediaRoomRepository;
+        this.cloudinaryService = cloudinaryService;
     }
     
     @Override
+    @Transactional
     public Media uploadMedia(MultipartFile file, MediaType mediaType, User user) {
         try {
             // Generate unique filename
@@ -40,8 +46,7 @@ public class MediaServiceImpl implements MediaService {
             String fileExtension = originalFilename.substring(originalFilename.lastIndexOf("."));
             String uniqueFilename = UUID.randomUUID().toString() + fileExtension;
             
-            // TODO: Upload to cloud storage (Cloudinary, AWS S3, etc.)
-            // For now, we'll just save the filename
+        
             String mediaUrl = "/uploads/" + uniqueFilename;
             
             Media media = Media.builder()
@@ -52,6 +57,7 @@ public class MediaServiceImpl implements MediaService {
                 .uploadedBy(user)
                 .build();
             
+            cloudinaryService.uploadImage(file, "media");
             return mediaRepository.save(media);
         } catch (Exception e) {
             throw new RuntimeException("Failed to upload media: " + e.getMessage());
@@ -67,13 +73,19 @@ public class MediaServiceImpl implements MediaService {
     
     @Override
     public Media getMediaById(Long mediaId) {
-        return mediaRepository.findById(mediaId)
+        Media media = mediaRepository.findById(mediaId)
             .orElseThrow(() -> new NotFoundException("Media not found with id: " + mediaId));
+
+        media.setMediaUrl(cloudinaryService.buildCloudinaryUrl(media.getMediaUrl()));
+
+        return media;
     }
     
     @Override
     public List<Media> getMediaByUser(User user) {
-        return mediaRepository.findByUploadedBy(user);
+        List<Media> mediaList = mediaRepository.findByUploadedBy(user);
+        mediaList.forEach(media -> media.setMediaUrl(cloudinaryService.buildCloudinaryUrl(media.getMediaUrl())));
+        return mediaList;
     }
     
     @Override

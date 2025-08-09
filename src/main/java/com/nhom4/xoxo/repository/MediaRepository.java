@@ -13,6 +13,9 @@ import com.nhom4.xoxo.enums.MediaType;
 
 @Repository
 public interface MediaRepository extends JpaRepository<Media, Long> {
+
+    @Query("SELECT m FROM Media m WHERE m.id = :mediaId")
+    Media findByIdWithCloudinaryUrl(@Param("mediaId") Long mediaId);
     
     // Tìm media theo type
     List<Media> findByMediaType(MediaType mediaType);

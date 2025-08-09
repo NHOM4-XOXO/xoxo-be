@@ -41,7 +41,7 @@ public class CloudinaryServiceImpl implements CloudinaryService{
         if(publicId == null){
             return null;
         }
-        if(publicId.contains("avatars")||publicId.contains("covers")){
+        if(publicId.contains("avatars")||publicId.contains("covers")||publicId.contains("media")){
             return "https://res.cloudinary.com/" + cloudName + "/image/upload/" + publicId;
         }
         
