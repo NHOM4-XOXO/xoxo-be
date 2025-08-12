@@ -9,8 +9,10 @@ import org.springframework.stereotype.Service;
 import com.nhom4.xoxo.dto.req.MailMessage;
 
 import jakarta.mail.internet.InternetAddress;
+import lombok.extern.slf4j.Slf4j;
 
 @Service
+@Slf4j
 public class MailConsumer {
     private final JavaMailSender mailSender;
 
@@ -32,10 +34,11 @@ public class MailConsumer {
             };
 
             mailSender.send(messagePreparator);
-            System.out.println("[MailConsumer] Đã gửi mail thành công tới: " + message.getTo());
+            log.info("[MailConsumer] Sent email to {}", message.getTo());
         } catch (Exception e) {
-            System.err.println("[MailConsumer] Lỗi gửi mail: " + e.getMessage());
-            e.printStackTrace();
+            log.error("[MailConsumer] Mail send failed: {}", e.getMessage(), e);
+            // Ném lại exception để DefaultErrorHandler xử lý retry/DLT
+            throw new RuntimeException("Mail send failed: " + e.getMessage(), e);
         }
     }
 }

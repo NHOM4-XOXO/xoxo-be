@@ -1,4 +1,4 @@
-package com.nhom4.xoxo.service.serviceImp;
+package com.nhom4.xoxo.service.impl;
 
 import java.text.Normalizer;
 import java.time.Duration;
@@ -40,6 +40,7 @@ import com.nhom4.xoxo.exception.NotFoundException;
 import com.nhom4.xoxo.exception.ServiceException;
 import com.nhom4.xoxo.kafka.MailProducer;
 import com.nhom4.xoxo.repository.UserRepository;
+import com.nhom4.xoxo.graph.service.SocialGraphService;
 import com.nhom4.xoxo.repository.VerificationTokenRepository;
 import com.nhom4.xoxo.security.JwtTokenProvider;
 import com.nhom4.xoxo.service.EmailService;
@@ -62,6 +63,7 @@ public class UserServiceImpl implements UserService {
     private final ModelMapper modelMapper;
     private final EmailService emailService;
     private final TokenService tokenService;
+    private final SocialGraphService socialGraphService;
 
     @Value("${fe.user.base-url}")
     String userBaseUrl;
@@ -73,7 +75,7 @@ public class UserServiceImpl implements UserService {
     public UserServiceImpl(UserRepository userRepository, PasswordEncoder passwordEncoder, MailProducer mailProducer,
             VerificationTokenRepository verificationTokenRepository, RefreshTokenService refreshTokenService,
             AuthenticationManager authenticationManager, JwtTokenProvider jwtTokenProvider,
-            UserDetailsService userDetailsService, ModelMapper modelMapper, EmailService emailService, TokenService tokenService) {
+            UserDetailsService userDetailsService, ModelMapper modelMapper, EmailService emailService, TokenService tokenService, SocialGraphService socialGraphService) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.mailProducer = mailProducer;
@@ -85,6 +87,7 @@ public class UserServiceImpl implements UserService {
         this.modelMapper = modelMapper;
         this.emailService = emailService;
         this.tokenService = tokenService;
+        this.socialGraphService = socialGraphService;
     }
     public static String toSlug(String input) {
         String normalized = Normalizer.normalize(input, Normalizer.Form.NFD);
@@ -135,7 +138,7 @@ public class UserServiceImpl implements UserService {
                 LocalDateTime.now().plusHours(24), type);
         verificationTokenRepository.save(verificationToken);
 
-        // Gửi email xác thực
+        // Gửi email xác thực trực tiếp (async qua Kafka như trước đây)
         String verifyLink = userBaseUrl + "/verify?token=" + token;
         String htmlContent = String.format(
                 """
@@ -158,13 +161,11 @@ public class UserServiceImpl implements UserService {
                 savedUser.getEmail(),
                 "Xác nhận đăng ký tài khoản",
                 htmlContent);
-        
         try {
             mailProducer.sendMail(mailMessage);
         } catch (Exception e) {
             throw new ServiceException("Đăng ký thất bại do gửi mail xác thực không thành công. Vui lòng thử lại sau.");
         }
-        
         return userResponse;
     }
 
@@ -202,6 +203,10 @@ public class UserServiceImpl implements UserService {
         }
         
         throw new ForbiddenException("You do not have permission to view this user");
+    }
+    @Override
+    public User findById(Long id) {
+        return userRepository.findById(id).orElse(null);
     }
 
     @Override
@@ -271,6 +276,7 @@ public class UserServiceImpl implements UserService {
             if (targetUser.getRoles().contains(Role.OWNER)) {
                 throw new ForbiddenException("Owner cannot delete another owner");
             }
+            socialGraphService.deleteUserNode(userId);
             userRepository.deleteById(userId);
             return;
         }
@@ -279,6 +285,7 @@ public class UserServiceImpl implements UserService {
             if (targetUser.getRoles().contains(Role.ADMIN) || targetUser.getRoles().contains(Role.OWNER)) {
                 throw new ForbiddenException("Admin can only delete user with USER role");
             }
+            socialGraphService.deleteUserNode(userId);
             userRepository.deleteById(userId);
             return;
         }

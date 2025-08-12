@@ -19,6 +19,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.nhom4.xoxo.dto.WrapRes;
+import com.nhom4.xoxo.notification.NotificationService;
 import com.nhom4.xoxo.dto.req.UpdateUserRequest;
 import com.nhom4.xoxo.dto.res.UserResponse;
 import com.nhom4.xoxo.entity.User;
@@ -28,19 +29,22 @@ import com.nhom4.xoxo.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
 
 @RestController
 @RequestMapping("/api/user")
+@RequiredArgsConstructor
 public class UserController {
 
     private final UserService userService;
     private final CloudinaryService cloudinaryService;
     private final ModelMapper modelMapper;
+    private final NotificationService notificationService;
 
-    public UserController(UserService userService, ModelMapper modelMapper, CloudinaryService cloudinaryService) {
-        this.userService = userService;
-        this.modelMapper = modelMapper;
-        this.cloudinaryService = cloudinaryService;
+    @GetMapping("/notifications")
+    public ResponseEntity<WrapRes<?>> myNotifications(Principal principal) {
+        var user = userService.findByEmail(principal.getName());
+        return ResponseEntity.ok(WrapRes.success(notificationService.list(user.getId())));
     }
 
     @Operation(summary = "Lấy thông tin cá nhân của user hiện tại", description = "Yêu cầu đã đăng nhập. Trả về thông tin user.", responses = {

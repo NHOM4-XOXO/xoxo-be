@@ -1,4 +1,4 @@
-package com.nhom4.xoxo.service.serviceImp;
+package com.nhom4.xoxo.service.impl;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -15,7 +15,10 @@ import com.nhom4.xoxo.repository.UserRepository;
 import com.nhom4.xoxo.repository.VerificationTokenRepository;
 import com.nhom4.xoxo.service.TokenService;
 
+import lombok.extern.slf4j.Slf4j;
+
 @Service
+@Slf4j
 public class TokenServiceImpl implements TokenService {
     
     private final UserRepository userRepository;
@@ -29,13 +32,13 @@ public class TokenServiceImpl implements TokenService {
     @Override
     @Transactional
     public VerificationToken createForgotPasswordToken(String email) {
-        System.out.println("[TokenService] === CREATE/REGENERATE TOKEN START ===");
-        System.out.println("[TokenService] Email: " + email);
+        log.info("[TokenService] === CREATE/REGENERATE TOKEN START ===");
+        log.debug("[TokenService] Email: {}", email);
         
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new NotFoundException("User not found"));
         
-        System.out.println("[TokenService] User found: " + user.getEmail());
+        log.debug("[TokenService] User found: {}", user.getEmail());
         
         // Xóa các token cũ của user này (nếu có)
         deleteOldTokens(user, "FORGOT_PASSWORD");
@@ -45,18 +48,17 @@ public class TokenServiceImpl implements TokenService {
         String type = "FORGOT_PASSWORD";
         VerificationToken verificationToken = new VerificationToken(token, user, LocalDateTime.now().plusHours(1), type);
         
-        System.out.println("[TokenService] Tạo token mới: " + token);
-        System.out.println("[TokenService] User ID: " + user.getId());
+        log.debug("[TokenService] New token: {}", token);
+        log.debug("[TokenService] User ID: {}", user.getId());
         
         try {
             VerificationToken savedToken = verificationTokenRepository.save(verificationToken);
-            System.out.println("[TokenService] Token saved successfully with ID: " + savedToken.getId());
-            System.out.println("[TokenService] === CREATE/REGENERATE TOKEN END ===");
+            log.info("[TokenService] Token saved successfully with ID: {}", savedToken.getId());
+            log.info("[TokenService] === CREATE/REGENERATE TOKEN END ===");
             return savedToken;
         } catch (Exception e) {
-            System.err.println("[TokenService] ERROR saving token: " + e.getMessage());
-            System.err.println("[TokenService] Exception type: " + e.getClass().getSimpleName());
-            e.printStackTrace();
+            log.error("[TokenService] ERROR saving token: {}", e.getMessage(), e);
+            log.error("[TokenService] Exception type: {}", e.getClass().getSimpleName());
             throw new ServiceException("Không thể tạo token mới: " + e.getMessage());
         }
     }
@@ -94,30 +96,29 @@ public class TokenServiceImpl implements TokenService {
      * Xóa các token cũ của user
      */
     private void deleteOldTokens(User user, String type) {
-        System.out.println("[TokenService] Bắt đầu xóa token cũ cho user: " + user.getEmail() + ", type: " + type);
+        log.info("[TokenService] Start deleting old tokens for user: {}, type: {}", user.getEmail(), type);
         
         try {
             List<VerificationToken> oldTokens = verificationTokenRepository.findByUserAndType(user, type);
-            System.out.println("[TokenService] Tìm thấy " + oldTokens.size() + " token cũ");
+            log.debug("[TokenService] Found {} old tokens", oldTokens.size());
             
             if (!oldTokens.isEmpty()) {
                 // Log chi tiết các token sẽ xóa
                 for (VerificationToken token : oldTokens) {
-                    System.out.println("[TokenService] Sẽ xóa token ID: " + token.getId() + ", Token: " + token.getToken());
+                    log.debug("[TokenService] Will delete token ID: {}, Token: {}", token.getId(), token.getToken());
                 }
                 
                 verificationTokenRepository.deleteAll(oldTokens);
-                System.out.println("[TokenService] Đã xóa " + oldTokens.size() + " token cũ của user: " + user.getEmail());
+                log.info("[TokenService] Deleted {} old tokens for user: {}", oldTokens.size(), user.getEmail());
                 
                 // Flush để đảm bảo delete được commit
                 verificationTokenRepository.flush();
-                System.out.println("[TokenService] Flush completed");
+                log.debug("[TokenService] Flush completed");
             } else {
-                System.out.println("[TokenService] Không có token cũ để xóa");
+                log.debug("[TokenService] No old token to delete");
             }
         } catch (Exception e) {
-            System.err.println("[TokenService] ERROR khi xóa token cũ: " + e.getMessage());
-            e.printStackTrace();
+            log.error("[TokenService] ERROR deleting old tokens: {}", e.getMessage(), e);
             throw new ServiceException("Không thể xóa token cũ: " + e.getMessage());
         }
     }

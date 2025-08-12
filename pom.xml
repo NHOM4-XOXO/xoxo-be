@@ -81,12 +81,7 @@
 			<scope>runtime</scope>
 		</dependency>
 
-		<!-- Lombok for reducing boilerplate code -->
-		<dependency>
-			<groupId>org.projectlombok</groupId>
-			<artifactId>lombok</artifactId>
-			<optional>true</optional>
-		</dependency>
+
 
 		<!-- Swagger/OpenAPI 3 Documentation -->
 		<!-- https://mvnrepository.com/artifact/org.springdoc/springdoc-openapi-starter-webmvc-ui -->
@@ -123,6 +118,18 @@
 			<artifactId>spring-kafka</artifactId>
 		</dependency>
 
+		<!-- Spring Data MongoDB for notifications/chats -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-data-mongodb</artifactId>
+		</dependency>
+
+		<!-- Spring Data Neo4j for social graph -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-data-neo4j</artifactId>
+		</dependency>
+
 		<!-- Spring Boot Mail Starter -->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
@@ -135,15 +142,7 @@
 			<artifactId>spring-boot-starter-oauth2-client</artifactId>
 		</dependency>
 
-		<!-- Flyway for database migration -->
-		<dependency>
-			<groupId>org.flywaydb</groupId>
-			<artifactId>flyway-core</artifactId>
-		</dependency>
-		<dependency>
-			<groupId>org.flywaydb</groupId>
-			<artifactId>flyway-mysql</artifactId>
-		</dependency>
+		<!-- Removed Flyway dependencies (temporarily disabled migrations) -->
 
 		<!-- https://mvnrepository.com/artifact/org.modelmapper/modelmapper -->
 		<dependency>
@@ -171,6 +170,8 @@
 			<artifactId>cloudinary-http44</artifactId>
 			<version>1.34.0</version>
 		</dependency>
+		
+		<!-- Removed dotenv-java; Spring will import .env.properties via spring.config.import -->
 	</dependencies>
 
 	<build>
@@ -179,20 +180,7 @@
 				<groupId>org.springframework.boot</groupId>
 				<artifactId>spring-boot-maven-plugin</artifactId>
 			</plugin>
-			<plugin>
-				<groupId>org.flywaydb</groupId>
-				<artifactId>flyway-maven-plugin</artifactId>
-				<version>11.7.2</version>
-				<configuration>
-					<url>jdbc:mysql://localhost:3307
-					/xoxo?createDatabaseIfNotExist=true</url>
-					<user>root</user>
-					<password>Sapassword1</password>
-					<locations>
-						<location>classpath:db/migration</location>
-					</locations>
-				</configuration>
-			</plugin>
+			<!-- Removed Flyway plugin -->
 		</plugins>
 	</build>
 

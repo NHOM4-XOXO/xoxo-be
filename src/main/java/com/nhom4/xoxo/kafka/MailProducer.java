@@ -10,8 +10,10 @@ import org.springframework.stereotype.Service;
 
 import com.nhom4.xoxo.dto.req.MailMessage;
 import com.nhom4.xoxo.exception.ServiceException;
+import lombok.extern.slf4j.Slf4j;
 
 @Service
+@Slf4j
 public class MailProducer {
     private final KafkaTemplate<String, MailMessage> kafkaTemplate;
     private final String topic;
@@ -33,9 +35,9 @@ public class MailProducer {
                 throw new ServiceException("Không thể gửi email: Kafka producer error");
             }
             
-            System.out.println("[MailProducer] Đã gửi mail thành công tới Kafka topic: " + topic);
+            log.info("[MailProducer] Sent message to topic {}", topic);
         } catch (Exception e) {
-            System.err.println("[MailProducer] Lỗi gửi mail: " + e.getMessage());
+            log.error("[MailProducer] Error sending to Kafka: {}", e.getMessage(), e);
             throw new ServiceException("Không thể gửi email qua Kafka: " + e.getMessage());
         }
     }

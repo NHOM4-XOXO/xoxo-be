@@ -1,4 +1,4 @@
-package com.nhom4.xoxo.service.serviceImp;
+package com.nhom4.xoxo.service.impl;
 
 import com.nhom4.xoxo.dto.res.GroupMemberResponse;
 import com.nhom4.xoxo.dto.res.GroupResponse;

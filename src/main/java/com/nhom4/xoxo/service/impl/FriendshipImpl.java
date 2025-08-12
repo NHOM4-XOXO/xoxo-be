@@ -1,4 +1,4 @@
-package com.nhom4.xoxo.service.serviceImp;
+package com.nhom4.xoxo.service.impl;
 
 import java.util.List;
 import java.util.Optional;
@@ -127,12 +127,20 @@ public class FriendshipImpl implements FriendshipService {
 
     @Override
     public List<Friendship> getPendingFriendships(Long userId) {
-        throw new UnsupportedOperationException("Unimplemented method 'getPendingFriendships'");
+       
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ServiceException("User not found"));
+        
+        return friendshipRepository.findByFriendAndStatus(user, FriendshipStatus.PENDING);
     }
 
     @Override
     public List<Friendship> getSentFriendships(Long userId) {
-        throw new UnsupportedOperationException("Unimplemented method 'getSentFriendships'");
+        
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ServiceException("User not found"));
+        
+        return friendshipRepository.findByInitiatorAndStatus(user, FriendshipStatus.PENDING);
     }
 
     @Override

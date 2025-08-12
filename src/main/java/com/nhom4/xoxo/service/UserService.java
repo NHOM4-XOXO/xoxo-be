@@ -22,6 +22,7 @@ public interface UserService {
     UserResponse registerUser(RegisterRequest request);
     User findByEmail(String email);
     User findById(Long id, User currentUser);
+    User findById(Long id);
     User updateUser(User user, User currentUser);
     User toggleUserStatus(Long userId, boolean enabled, User currentUser);
     void deleteUser(Long userId, User currentUser);

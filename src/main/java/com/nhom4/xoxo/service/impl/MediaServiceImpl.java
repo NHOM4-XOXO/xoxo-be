@@ -1,4 +1,4 @@
-package com.nhom4.xoxo.service.serviceImp;
+package com.nhom4.xoxo.service.impl;
 
 import java.util.List;
 import java.util.UUID;

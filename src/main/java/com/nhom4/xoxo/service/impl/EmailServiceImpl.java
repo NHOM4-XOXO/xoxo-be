@@ -1,4 +1,4 @@
-package com.nhom4.xoxo.service.serviceImp;
+package com.nhom4.xoxo.service.impl;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -11,7 +11,10 @@ import com.nhom4.xoxo.kafka.MailProducer;
 import com.nhom4.xoxo.repository.VerificationTokenRepository;
 import com.nhom4.xoxo.service.EmailService;
 
+import lombok.extern.slf4j.Slf4j;
+
 @Service
+@Slf4j
 public class EmailServiceImpl implements EmailService {
     
     private final MailProducer mailProducer;
@@ -34,18 +37,18 @@ public class EmailServiceImpl implements EmailService {
             mailProducer.sendMail(mailMessage);
             
             // Nếu gửi thành công, commit transaction
-            System.out.println("[EmailService] Gửi mail thành công: " + mailMessage.getTo());
+            log.info("[EmailService] Sent email to {}", mailMessage.getTo());
             
         } catch (Exception e) {
             // Nếu gửi mail thất bại, rollback và xóa token
-            System.err.println("[EmailService] Lỗi gửi mail: " + e.getMessage());
+            log.error("[EmailService] Error sending mail: {}", e.getMessage(), e);
             
             if (verificationToken != null) {
                 try {
                     verificationTokenRepository.delete(verificationToken);
-                    System.out.println("[EmailService] Đã xóa token sau khi gửi mail thất bại");
+                    log.info("[EmailService] Deleted token after send failure");
                 } catch (Exception deleteException) {
-                    System.err.println("[EmailService] Lỗi khi xóa token: " + deleteException.getMessage());
+                    log.error("[EmailService] Error deleting token: {}", deleteException.getMessage(), deleteException);
                 }
             }
             
@@ -58,9 +61,9 @@ public class EmailServiceImpl implements EmailService {
     public void sendMail(MailMessage mailMessage) {
         try {
             mailProducer.sendMail(mailMessage);
-            System.out.println("[EmailService] Gửi mail thành công: " + mailMessage.getTo());
+            log.info("[EmailService] Sent email to {}", mailMessage.getTo());
         } catch (Exception e) {
-            System.err.println("[EmailService] Lỗi gửi mail: " + e.getMessage());
+            log.error("[EmailService] Error sending mail: {}", e.getMessage(), e);
             throw new ServiceException("Không thể gửi email: " + e.getMessage());
         }
     }

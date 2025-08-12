@@ -27,8 +27,10 @@ import com.nhom4.xoxo.service.RefreshTokenService;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import lombok.extern.slf4j.Slf4j;
 
 @Component
+@Slf4j
 public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler {
 
     @Autowired
@@ -138,8 +140,8 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
         try {
             // Tạo JWT token
             String jwt = jwtTokenProvider.generateToken(authentication);
-            System.out.println("✅ OAuth2 login successful for user: " + email);
-            System.out.println("🔑 JWT token generated: " + jwt.substring(0, Math.min(20, jwt.length())) + "...");
+            log.info("OAuth2 login successful for user: {}", email);
+            log.debug("JWT token generated: {}...", jwt.substring(0, Math.min(20, jwt.length())));
 
             String refreshToken = java.util.UUID.randomUUID().toString();
 
