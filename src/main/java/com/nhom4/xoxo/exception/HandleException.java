@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 
 import com.nhom4.xoxo.constant.WrapResStatus;
 import com.nhom4.xoxo.dto.WrapRes;
@@ -135,5 +136,21 @@ public class HandleException extends ResponseEntityExceptionHandler {
         return handleExceptionInternal(ex, 
                 WrapRes.error(WrapResStatus.SERVICE_ERROR, "Đã xảy ra lỗi không mong muốn. Vui lòng thử lại sau."),
                 new HttpHeaders(), HttpStatus.INTERNAL_SERVER_ERROR, request);
+    }
+
+    @Override
+    protected ResponseEntity<Object> handleMaxUploadSizeExceededException(
+            @NonNull MaxUploadSizeExceededException ex,
+            @NonNull HttpHeaders headers,
+            @NonNull HttpStatusCode status,
+            @NonNull WebRequest request) {
+        log.warn("HandleException.handleMaxUploadSizeExceededException: {}", ex.getMessage());
+        String message = "Kích thước file vượt quá giới hạn cho phép.";
+        return handleExceptionInternal(
+                ex,
+                WrapRes.error(WrapResStatus.BAD_REQUEST, message),
+                headers,
+                HttpStatus.PAYLOAD_TOO_LARGE,
+                request);
     }
 }

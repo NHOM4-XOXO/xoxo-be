@@ -12,7 +12,6 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -23,14 +22,14 @@ import com.nhom4.xoxo.dto.res.CommentItemResponse;
 import com.nhom4.xoxo.dto.res.MediaResponse;
 import com.nhom4.xoxo.dto.res.PostItemResponse;
 import com.nhom4.xoxo.dto.res.PostResponse;
+import com.nhom4.xoxo.dto.res.PostWithMediaResponse;
 import com.nhom4.xoxo.dto.res.SharePostItemResponse;
 import com.nhom4.xoxo.dto.res.UserResponse;
-import com.nhom4.xoxo.entity.Comment;
 import com.nhom4.xoxo.entity.Media;
 import com.nhom4.xoxo.entity.Post;
-import com.nhom4.xoxo.entity.SharePost;
 import com.nhom4.xoxo.entity.User;
 import com.nhom4.xoxo.service.PostService;
+import com.nhom4.xoxo.service.CloudinaryService;
 import com.nhom4.xoxo.service.UserService;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -46,11 +45,13 @@ public class PostController {
     private final PostService postService;
     private final UserService userService;
     private final ModelMapper modelMapper;
+    private final CloudinaryService cloudinaryService;
 
-    public PostController(PostService postService, UserService userService, ModelMapper modelMapper) {
+    public PostController(PostService postService, UserService userService, ModelMapper modelMapper, CloudinaryService cloudinaryService) {
         this.postService = postService;
         this.userService = userService;
-        this.modelMapper = modelMapper;
+        this.modelMapper = modelMapper; // kept for future mappings
+        this.cloudinaryService = cloudinaryService;
     }
 
     @Operation(summary = "Tạo bài viết mới", description = "Yêu cầu đã đăng nhập. Tạo bài viết mới.", responses = {
@@ -145,6 +146,24 @@ public class PostController {
             .map(this::mapToMediaResponse)
             .toList();
         return ResponseEntity.ok(WrapRes.success(mediaResponses));
+    }
+
+    @Operation(summary = "Lấy bài viết cùng media", description = "Trả về PostItemResponse và danh sách MediaResponse cho bài viết")
+    @GetMapping("/{postId}/details")
+    public ResponseEntity<WrapRes<?>> getPostWithMedia(@PathVariable Long postId) {
+        PostItemResponse post = postService.getPostItemById(postId).orElse(null);
+        if (post == null) {
+            return ResponseEntity.ok(WrapRes.error("Post not found"));
+        }
+        List<Media> media = postService.getPostMedia(postId);
+        List<MediaResponse> mediaResponses = media.stream()
+            .map(this::mapToMediaResponse)
+            .toList();
+        PostWithMediaResponse res = PostWithMediaResponse.builder()
+            .post(post)
+            .media(mediaResponses)
+            .build();
+        return ResponseEntity.ok(WrapRes.success(res));
     }
 
     @Operation(summary = "Lấy comments của bài viết", description = "Lấy danh sách comments của một bài viết", responses = {
@@ -345,13 +364,13 @@ public class PostController {
                     .username(uploadedBy.getUsername())
                     .build();
             } catch (Exception e) {
-                // Log warning if mapping fails
+                log.warn("Failed to map uploadedBy for media {}: {}", media.getId(), e.getMessage());
             }
         }
         
         return MediaResponse.builder()
             .id(media.getId())
-            .mediaUrl(media.getMediaUrl())
+            .mediaUrl(cloudinaryService.buildCloudinaryUrl(media.getMediaUrl()))
             .mediaType(media.getMediaType())
             .originalFilename(media.getOriginalFilename())
             .fileSize(media.getFileSize())

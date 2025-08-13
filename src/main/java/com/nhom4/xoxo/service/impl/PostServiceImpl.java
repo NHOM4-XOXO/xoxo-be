@@ -22,9 +22,11 @@ import com.nhom4.xoxo.enums.PostStatus;
 import com.nhom4.xoxo.exception.NotFoundException;
 import com.nhom4.xoxo.repository.CommentRepository;
 import com.nhom4.xoxo.repository.MediaRoomRepository;
+import com.nhom4.xoxo.repository.MediaRepository;
 import com.nhom4.xoxo.repository.PostRepository;
 import com.nhom4.xoxo.repository.SharePostRepository;
 import com.nhom4.xoxo.repository.PostLikeRepository;
+import com.nhom4.xoxo.service.CloudinaryService;
 import com.nhom4.xoxo.service.PostService;
 
 @Service
@@ -37,16 +39,20 @@ public class PostServiceImpl implements PostService {
     private final SharePostRepository sharePostRepository;
 
     private final MediaRoomRepository mediaRoomRepository;
+    private final MediaRepository mediaRepository;
     private final PostLikeRepository postLikeRepository;
+    private final CloudinaryService cloudinaryService;
 
     public PostServiceImpl(PostRepository postRepository, CommentRepository commentRepository,
             SharePostRepository sharePostRepository, MediaRoomRepository mediaRoomRepository,
-            PostLikeRepository postLikeRepository) {
+            MediaRepository mediaRepository, PostLikeRepository postLikeRepository, CloudinaryService cloudinaryService) {
         this.postRepository = postRepository;
         this.commentRepository = commentRepository;
         this.sharePostRepository = sharePostRepository;
         this.mediaRoomRepository = mediaRoomRepository;
+        this.mediaRepository = mediaRepository;
         this.postLikeRepository = postLikeRepository;
+        this.cloudinaryService = cloudinaryService;
     }
 
     @Override
@@ -78,6 +84,7 @@ public class PostServiceImpl implements PostService {
     public List<Media> getPostMedia(Long postId) {
         List<MediaRoom> mediaRooms = mediaRoomRepository.findByTargetIdAndTargetType(
                 postId, MediaRoomTargetType.POST);
+        mediaRooms.forEach(mediaRoom -> mediaRoom.getMedia().setMediaUrl(cloudinaryService.buildCloudinaryUrl(mediaRoom.getMedia().getMediaUrl())));
 
         return mediaRooms.stream()
                 .map(MediaRoom::getMedia)
@@ -98,7 +105,11 @@ public class PostServiceImpl implements PostService {
 
     @Override
     public void addMediaToPost(Long postId, Long mediaId) {
+        Media media = mediaRepository.findById(mediaId)
+                .orElseThrow(() -> new NotFoundException("Media not found with id: " + mediaId));
+
         MediaRoom mediaRoom = MediaRoom.builder()
+                .media(media)
                 .targetId(postId)
                 .targetType(MediaRoomTargetType.POST)
                 .build();

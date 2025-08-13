@@ -65,13 +65,16 @@ public class MediaServiceImpl implements MediaService {
     
     @Override
     public Media getMediaById(Long mediaId) {
-        return mediaRepository.findById(mediaId)
+        Media media = mediaRepository.findById(mediaId)
             .orElseThrow(() -> new NotFoundException("Media not found with id: " + mediaId));
+        return media;
     }
+        
     
     @Override
     public List<Media> getMediaByUser(User user) {
-        return mediaRepository.findByUploadedBy(user);
+        List<Media> mediaList = mediaRepository.findByUploadedBy(user);
+        return mediaList;
     }
     
     @Override
@@ -94,7 +97,6 @@ public class MediaServiceImpl implements MediaService {
         
         return mediaRooms.stream()
             .map(MediaRoom::getMedia)
-            .peek(m -> m.setMediaUrl(cloudinaryService.buildCloudinaryUrl(m.getMediaUrl())))
             .collect(Collectors.toList());
     }
     
@@ -105,7 +107,6 @@ public class MediaServiceImpl implements MediaService {
         
         return mediaRooms.stream()
             .map(MediaRoom::getMedia)
-            .peek(m -> m.setMediaUrl(cloudinaryService.buildCloudinaryUrl(m.getMediaUrl())))
             .collect(Collectors.toList());
     }
     

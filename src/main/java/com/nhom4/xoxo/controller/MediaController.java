@@ -29,8 +29,10 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 @RestController
+@Slf4j
 @RequestMapping("/api/media")
 @RequiredArgsConstructor
 @Tag(name = "Media Management", description = "APIs for media upload and management")
@@ -96,7 +98,8 @@ public class MediaController {
     @GetMapping("/{mediaId}")
     public ResponseEntity<WrapRes<?>> getMediaById(@PathVariable Long mediaId) {
         Media media = mediaService.getMediaById(mediaId);
-        return ResponseEntity.ok(WrapRes.success(media));
+        MediaResponse mediaResponse = mapToMediaResponse(media);
+        return ResponseEntity.ok(WrapRes.success(mediaResponse));
     }
 
     @Operation(summary = "Lấy media của user", description = "Lấy danh sách media của user hiện tại", responses = {
@@ -109,7 +112,10 @@ public class MediaController {
         User currentUser = userService.findByEmail(email);
 
         List<Media> mediaList = mediaService.getMediaByUser(currentUser);
-        return ResponseEntity.ok(WrapRes.success(mediaList));
+        List<MediaResponse> mediaResponses = mediaList.stream()
+            .map(this::mapToMediaResponse)
+            .toList();
+        return ResponseEntity.ok(WrapRes.success(mediaResponses));
     }
 
     @Operation(summary = "Xóa media", description = "Xóa media theo ID", responses = {
@@ -149,7 +155,7 @@ public class MediaController {
                     .username(uploadedBy.getUsername())
                     .build();
             } catch (Exception e) {
-                // Log warning if mapping fails
+                log.warn("Failed to map uploadedBy for media {}: {}", media.getId(), e.getMessage());   
             }
         }
         
