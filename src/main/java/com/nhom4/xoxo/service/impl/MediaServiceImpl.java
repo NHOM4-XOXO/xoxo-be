@@ -1,7 +1,6 @@
 package com.nhom4.xoxo.service.impl;
 
 import java.util.List;
-import java.util.UUID;
 import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
@@ -17,6 +16,7 @@ import com.nhom4.xoxo.exception.UnauthorizedException;
 import com.nhom4.xoxo.repository.MediaRepository;
 import com.nhom4.xoxo.repository.MediaRoomRepository;
 import com.nhom4.xoxo.service.MediaService;
+import com.nhom4.xoxo.service.CloudinaryService;
 
 @Service
 public class MediaServiceImpl implements MediaService {
@@ -26,23 +26,21 @@ public class MediaServiceImpl implements MediaService {
     
    
     private final MediaRoomRepository mediaRoomRepository;
+    private final CloudinaryService cloudinaryService;
 
-    public MediaServiceImpl(MediaRepository mediaRepository, MediaRoomRepository mediaRoomRepository) {
+    public MediaServiceImpl(MediaRepository mediaRepository, MediaRoomRepository mediaRoomRepository, CloudinaryService cloudinaryService) {
         this.mediaRepository = mediaRepository;
         this.mediaRoomRepository = mediaRoomRepository;
+        this.cloudinaryService = cloudinaryService;
     }
     
     @Override
     public Media uploadMedia(MultipartFile file, MediaType mediaType, User user) {
         try {
-            // Generate unique filename
             String originalFilename = file.getOriginalFilename();
-            String fileExtension = originalFilename.substring(originalFilename.lastIndexOf("."));
-            String uniqueFilename = UUID.randomUUID().toString() + fileExtension;
-            
-            // TODO: Upload to cloud storage (Cloudinary, AWS S3, etc.)
-            // For now, we'll just save the filename
-            String mediaUrl = "/uploads/" + uniqueFilename;
+            // Upload to Cloudinary under folder 'posts'
+            String publicId = cloudinaryService.uploadImage(file, "posts");
+            String mediaUrl = cloudinaryService.buildCloudinaryUrl(publicId);
             
             Media media = Media.builder()
                 .mediaUrl(mediaUrl)
@@ -96,6 +94,7 @@ public class MediaServiceImpl implements MediaService {
         
         return mediaRooms.stream()
             .map(MediaRoom::getMedia)
+            .peek(m -> m.setMediaUrl(cloudinaryService.buildCloudinaryUrl(m.getMediaUrl())))
             .collect(Collectors.toList());
     }
     
@@ -106,6 +105,7 @@ public class MediaServiceImpl implements MediaService {
         
         return mediaRooms.stream()
             .map(MediaRoom::getMedia)
+            .peek(m -> m.setMediaUrl(cloudinaryService.buildCloudinaryUrl(m.getMediaUrl())))
             .collect(Collectors.toList());
     }
     

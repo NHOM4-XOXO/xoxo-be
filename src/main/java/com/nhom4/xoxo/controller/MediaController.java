@@ -21,6 +21,7 @@ import com.nhom4.xoxo.entity.Media;
 import com.nhom4.xoxo.entity.User;
 import com.nhom4.xoxo.enums.MediaType;
 import com.nhom4.xoxo.service.MediaService;
+import com.nhom4.xoxo.service.CloudinaryService;
 import com.nhom4.xoxo.service.UserService;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -37,6 +38,7 @@ public class MediaController {
 
     private final MediaService mediaService;
     private final UserService userService;
+    private final CloudinaryService cloudinaryService;
 
     @Operation(summary = "Upload media", description = "Upload file media (ảnh/video) lên server", responses = {
             @ApiResponse(responseCode = "200", description = "Upload media thành công"),
@@ -153,7 +155,7 @@ public class MediaController {
         
         return MediaResponse.builder()
             .id(media.getId())
-            .mediaUrl(media.getMediaUrl())
+            .mediaUrl(cloudinaryService.buildCloudinaryUrl(media.getMediaUrl()))
             .mediaType(media.getMediaType())
             .originalFilename(media.getOriginalFilename())
             .fileSize(media.getFileSize())

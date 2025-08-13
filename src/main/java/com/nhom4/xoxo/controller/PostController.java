@@ -12,14 +12,18 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.nhom4.xoxo.dto.WrapRes;
 import com.nhom4.xoxo.dto.req.PostRequest;
+import com.nhom4.xoxo.dto.res.CommentItemResponse;
 import com.nhom4.xoxo.dto.res.MediaResponse;
+import com.nhom4.xoxo.dto.res.PostItemResponse;
 import com.nhom4.xoxo.dto.res.PostResponse;
+import com.nhom4.xoxo.dto.res.SharePostItemResponse;
 import com.nhom4.xoxo.dto.res.UserResponse;
 import com.nhom4.xoxo.entity.Comment;
 import com.nhom4.xoxo.entity.Media;
@@ -88,7 +92,9 @@ public class PostController {
             }
         }
 
-       PostResponse postResponse = mapToPostResponse(createdPost);
+        PostResponse postResponse = mapToPostResponse(createdPost);
+
+    
 
         
         
@@ -101,8 +107,7 @@ public class PostController {
     })
     @GetMapping("/{postId}")
     public ResponseEntity<WrapRes<?>> getPostById(@PathVariable Long postId) {
-        Post post = postService.getPostById(postId).get();
-        PostResponse postResponse = mapToPostResponse(post);
+      PostItemResponse postResponse = postService.getPostItemById(postId).get();
         return ResponseEntity.ok(WrapRes.success(postResponse));
     }
 
@@ -111,12 +116,9 @@ public class PostController {
     })
     @GetMapping("/public")
     public ResponseEntity<WrapRes<?>> getPublicPosts() {
-        List<Post> posts = postService.getPublicPosts();
-        List<PostResponse> postResponses = posts.stream()
-            .map(this::mapToPostResponse)
-            .toList();
-        log.info("Found {} public posts", postResponses.size());
-        return ResponseEntity.ok(WrapRes.success(postResponses));
+        List<PostItemResponse> posts = postService.getPublicPosts();
+       
+        return ResponseEntity.ok(WrapRes.success(posts));
     }
 
     @Operation(summary = "Lấy bài viết theo tác giả", description = "Lấy danh sách bài viết của một tác giả", responses = {
@@ -128,11 +130,9 @@ public class PostController {
         String email = authentication.getName();
         User currentUser = userService.findByEmail(email);
         User author = userService.findById(userId, currentUser);
-        List<Post> posts = postService.getPostsByAuthor(author);
-        List<PostResponse> postResponses = posts.stream()
-            .map(this::mapToPostResponse)
-            .toList();
-        return ResponseEntity.ok(WrapRes.success(postResponses));
+        List<PostItemResponse> posts = postService.getPostsByAuthor(author);
+ 
+        return ResponseEntity.ok(WrapRes.success(posts));
     }
 
     @Operation(summary = "Lấy media của bài viết", description = "Lấy danh sách media của một bài viết", responses = {
@@ -152,8 +152,7 @@ public class PostController {
     })
     @GetMapping("/{postId}/comments")
     public ResponseEntity<WrapRes<?>> getPostComments(@PathVariable Long postId) {
-        List<Comment> comments = postService.getPostComments(postId);
-        return ResponseEntity.ok(WrapRes.success(comments));
+        return ResponseEntity.ok(WrapRes.success(postService.getCommentsOfPost(postId)));
     }
 
     @Operation(summary = "Lấy shares của bài viết", description = "Lấy danh sách shares của một bài viết", responses = {
@@ -161,8 +160,13 @@ public class PostController {
     })
     @GetMapping("/{postId}/shares")
     public ResponseEntity<WrapRes<?>> getPostShares(@PathVariable Long postId) {
-        List<SharePost> shares = postService.getPostShares(postId);
-        return ResponseEntity.ok(WrapRes.success(shares));
+        return ResponseEntity.ok(WrapRes.success(postService.getSharesOfPost(postId)));
+    }
+
+    @Operation(summary = "Danh sách users đã like bài viết", description = "Trả về user cơ bản của những người đã like")
+    @GetMapping("/{postId}/likes")
+    public ResponseEntity<WrapRes<?>> getPostLikes(@PathVariable Long postId) {
+        return ResponseEntity.ok(WrapRes.success(postService.getUsersLikedPost(postId)));
     }
 
     @Operation(summary = "Thêm media cho bài viết", description = "Thêm một hoặc nhiều media vào bài viết", responses = {
@@ -228,41 +232,46 @@ public class PostController {
         return ResponseEntity.ok(WrapRes.success("Post deleted successfully"));
     }
 
-    @Operation(summary = "Tăng like count", description = "Tăng số lượt like của bài viết", responses = {
-            @ApiResponse(responseCode = "200", description = "Tăng like count thành công")
+    @Operation(summary = "like post", description = " like  post", responses = {
+            @ApiResponse(responseCode = "200", description = "like  post")
     })
     @PostMapping("/{postId}/like")
-    public ResponseEntity<WrapRes<?>> incrementLikeCount(@PathVariable Long postId) {
-        postService.incrementLikeCount(postId);
-        return ResponseEntity.ok(WrapRes.success("Like count incremented"));
+    public ResponseEntity<WrapRes<?>> toggleLike(@PathVariable Long postId) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        String email = authentication.getName();
+        User user = userService.findByEmail(email);
+        boolean liked = postService.toggleLike(postId, user);
+        return ResponseEntity.ok(WrapRes.success(liked ? "LIKED" : "UNLIKED"));
     }
 
-    @Operation(summary = "Tăng comment count", description = "Tăng số lượt comment của bài viết", responses = {
-            @ApiResponse(responseCode = "200", description = "Tăng comment count thành công")
+    @Operation(summary = " comment post ", description = "Comment post", responses = {
+            @ApiResponse(responseCode = "200", description = "Comment post")
     })
-    @PostMapping("/{postId}/comment-count")
-    public ResponseEntity<WrapRes<?>> incrementCommentCount(@PathVariable Long postId) {
-        postService.incrementCommentCount(postId);
-        return ResponseEntity.ok(WrapRes.success("Comment count incremented"));
+    @PostMapping("/{postId}/comment")
+    public ResponseEntity<WrapRes<?>> addComment(@PathVariable Long postId, @RequestParam("content") String content, @RequestParam(value = "parentCommentId", required = false) Long parentCommentId) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        String email = authentication.getName();
+        User user = userService.findByEmail(email);
+        CommentItemResponse c = postService.addComment(postId, user, content, parentCommentId); 
+        return ResponseEntity.ok(WrapRes.success(c));
     }
 
-    @Operation(summary = "Tăng share count", description = "Tăng số lượt share của bài viết", responses = {
-            @ApiResponse(responseCode = "200", description = "Tăng share count thành công")
+    @Operation(summary = "Share post", description = "Share post", responses = {
+            @ApiResponse(responseCode = "200", description = "Share post")
     })
-    @PostMapping("/{postId}/share-count")
-    public ResponseEntity<WrapRes<?>> incrementShareCount(@PathVariable Long postId) {
-        postService.incrementShareCount(postId);
-        return ResponseEntity.ok(WrapRes.success("Share count incremented"));
+    @PostMapping("/{postId}/share")
+    public ResponseEntity<WrapRes<?>> sharePost(@PathVariable Long postId, @RequestParam(value = "content", required = false) String shareContent) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        String email = authentication.getName();
+        User user = userService.findByEmail(email);
+        SharePostItemResponse sp = postService.sharePost(postId, user, shareContent);
+        return ResponseEntity.ok(WrapRes.success(sp));
     }
 
     @Operation(summary = "Tăng view count", description = "Tăng số lượt xem của bài viết", responses = {
             @ApiResponse(responseCode = "200", description = "Tăng view count thành công")
     })
-    @PostMapping("/{postId}/view")
-    public ResponseEntity<WrapRes<?>> incrementViewCount(@PathVariable Long postId) {
-        postService.incrementViewCount(postId);
-        return ResponseEntity.ok(WrapRes.success("View count incremented"));
-    }
+ 
     
     // Helper method to map Post entity to PostResponse
     private PostResponse mapToPostResponse(Post post) {
