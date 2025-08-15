@@ -3,9 +3,13 @@ package com.nhom4.xoxo.service;
 import java.util.List;
 import java.util.Optional;
 
+import com.nhom4.xoxo.dto.res.CommentItemResponse;
+import com.nhom4.xoxo.dto.res.PostItemResponse;
+import com.nhom4.xoxo.dto.res.SharePostItemResponse;
 import com.nhom4.xoxo.entity.Comment;
 import com.nhom4.xoxo.entity.Media;
 import com.nhom4.xoxo.entity.Post;
+import com.nhom4.xoxo.entity.PostLike;
 import com.nhom4.xoxo.entity.SharePost;
 import com.nhom4.xoxo.entity.User;
 
@@ -13,15 +17,18 @@ public interface PostService {
     
     // Tạo post mới
     Post createPost(Post post);
-    
+
     // Lấy post theo ID
     Optional<Post> getPostById(Long postId);
+
+    // Lấy post theo ID
+    Optional<PostItemResponse> getPostItemById(Long postId);
     
     // Lấy tất cả posts public
-    List<Post> getPublicPosts();
+    List<PostItemResponse> getPublicPosts();
     
     // Lấy posts theo author
-    List<Post> getPostsByAuthor(User author);
+    List<PostItemResponse> getPostsByAuthor(User author);
     
     // Lấy media của post
     List<Media> getPostMedia(Long postId);
@@ -55,4 +62,22 @@ public interface PostService {
     
     // Tăng view count
     void incrementViewCount(Long postId);
+
+    // Like/Unlike post, trả về true nếu đã like sau thao tác
+    boolean toggleLike(Long postId, User user);
+
+    // Tạo comment
+    CommentItemResponse addComment(Long postId, User author, String content, Long parentCommentId);
+
+    // Tạo share
+    SharePostItemResponse sharePost(Long postId, User sharer, String shareContent);
+
+    // Danh sách users like post
+    List<User> getUsersLikedPost(Long postId);
+
+    // Danh sách shares của post (DTO)
+    List<SharePostItemResponse> getSharesOfPost(Long postId);
+
+    // Danh sách comments top-level của post (DTO)
+    List<CommentItemResponse> getCommentsOfPost(Long postId);
 } 

@@ -38,13 +38,16 @@ public class CloudinaryServiceImpl implements CloudinaryService{
 
     @Override
     public String buildCloudinaryUrl(String publicId) {
-        if(publicId == null){
+        if (publicId == null) {
             return null;
         }
-        if(publicId.contains("avatars")||publicId.contains("covers")){
-            return "https://res.cloudinary.com/" + cloudName + "/image/upload/" + publicId;
+        String value = publicId.trim();
+        // If it's already a full URL, return as-is (idempotent)
+        if (value.startsWith("http://") || value.startsWith("https://")) {
+            return value;
         }
-        
-        return publicId;
+        // Treat input as Cloudinary publicId
+        return "https://res.cloudinary.com/" + cloudName + "/image/upload/" + value;
     }
+        
 }
