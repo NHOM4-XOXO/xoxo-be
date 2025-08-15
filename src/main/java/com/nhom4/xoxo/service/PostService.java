@@ -6,6 +6,7 @@ import java.util.Optional;
 import com.nhom4.xoxo.dto.res.CommentItemResponse;
 import com.nhom4.xoxo.dto.res.PostItemResponse;
 import com.nhom4.xoxo.dto.res.SharePostItemResponse;
+import com.nhom4.xoxo.dto.res.UserLikeResponse;
 import com.nhom4.xoxo.entity.Comment;
 import com.nhom4.xoxo.entity.Media;
 import com.nhom4.xoxo.entity.Post;
@@ -73,7 +74,7 @@ public interface PostService {
     SharePostItemResponse sharePost(Long postId, User sharer, String shareContent);
 
     // Danh sách users like post
-    List<User> getUsersLikedPost(Long postId);
+    List<UserLikeResponse> getUsersLikedPost(Long postId);
 
     // Danh sách shares của post (DTO)
     List<SharePostItemResponse> getSharesOfPost(Long postId);

@@ -1,9 +1,13 @@
 package com.nhom4.xoxo.controller;
 
 import java.security.Principal;
+import java.util.List;
 import java.util.Optional;
 
 import org.modelmapper.ModelMapper;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -22,6 +26,7 @@ import com.nhom4.xoxo.dto.WrapRes;
 import com.nhom4.xoxo.service.NotificationService;
 import com.nhom4.xoxo.dto.req.UpdateUserRequest;
 import com.nhom4.xoxo.dto.res.UserResponse;
+import com.nhom4.xoxo.entity.Notification;
 import com.nhom4.xoxo.entity.User;
 import com.nhom4.xoxo.service.CloudinaryService;
 import com.nhom4.xoxo.service.UserService;
@@ -40,12 +45,6 @@ public class UserController {
     private final CloudinaryService cloudinaryService;
     private final ModelMapper modelMapper;
     private final NotificationService notificationService;
-
-    @GetMapping("/notifications")
-    public ResponseEntity<WrapRes<?>> myNotifications(Principal principal) {
-        var user = userService.findByEmail(principal.getName());
-        return ResponseEntity.ok(WrapRes.success(notificationService.list(user.getId())));
-    }
 
     @Operation(summary = "Lấy thông tin cá nhân của user hiện tại", description = "Yêu cầu đã đăng nhập. Trả về thông tin user.", responses = {
             @ApiResponse(responseCode = "200", description = "Lấy thông tin user thành công")
@@ -86,8 +85,11 @@ public class UserController {
         if (file.getSize() > maxSize) {
             return ResponseEntity.badRequest().body("File quá lớn! Vui lòng chọn ảnh nhỏ hơn 2MB.");
         }
-        String avatarUrl = cloudinaryService.uploadImage(file, "avatars");
+        
+        // Sử dụng method mới để lấy trực tiếp URL
+        String avatarUrl = cloudinaryService.uploadImageAndGetUrl(file, "avatars");
         userService.updateAvatar(user, avatarUrl);
+        
         return ResponseEntity.ok(WrapRes.success("Avatar updated successfully"));
     }
 
@@ -102,19 +104,21 @@ public class UserController {
         if (file.getSize() > maxSize) {
             return ResponseEntity.badRequest().body("File quá lớn! Vui lòng chọn ảnh nhỏ hơn 2MB.");
         }
-        String coverUrl = cloudinaryService.uploadImage(file, "covers");
+        
+        // Sử dụng method mới để lấy trực tiếp URL
+        String coverUrl = cloudinaryService.uploadImageAndGetUrl(file, "covers");
         userService.updateCover(user, coverUrl);
+        
         return ResponseEntity.ok(WrapRes.success("Cover updated successfully"));
     }
 
-    //lay user theo username
     @Operation(summary = "Lấy thông tin user theo username", description = "Lấy thông tin user theo username", responses = {
             @ApiResponse(responseCode = "200", description = "Lấy thông tin user theo username thành công")
     })
     @GetMapping("/{username}")
     public ResponseEntity<WrapRes<?>> getUserByUsername(@PathVariable String username) {
         Optional<User> user = userService.findByUsername(username);
-        if(user.isPresent()){
+        if (user.isPresent()) {
             UserResponse userResponse = modelMapper.map(user.get(), UserResponse.class);
             userResponse.setAvatarUrl(cloudinaryService.buildCloudinaryUrl(user.get().getAvatarUrl()));
             userResponse.setCoverUrl(cloudinaryService.buildCloudinaryUrl(user.get().getCoverUrl()));
@@ -123,4 +127,91 @@ public class UserController {
         return ResponseEntity.ok(WrapRes.success(user));
     }
 
+    // ==================== NOTIFICATION ENDPOINTS ====================
+
+    @Operation(summary = "Lấy danh sách notifications của user hiện tại", description = "Lấy notifications có phân trang", responses = {
+            @ApiResponse(responseCode = "200", description = "Lấy notifications thành công")
+    })
+    @GetMapping("/notifications")
+    public ResponseEntity<WrapRes<?>> myNotifications(
+            Principal principal,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+
+        var user = userService.findByEmail(principal.getName());
+        Pageable pageable = PageRequest.of(page, size);
+        Page<Notification> notifications = notificationService.getUserNotifications(user.getId(), pageable);
+
+        return ResponseEntity.ok(WrapRes.success(notifications));
+    }
+
+    @Operation(summary = "Lấy danh sách notifications chưa đọc", description = "Lấy tất cả notifications chưa đọc của user", responses = {
+            @ApiResponse(responseCode = "200", description = "Lấy notifications chưa đọc thành công")
+    })
+    @GetMapping("/notifications/unread")
+    public ResponseEntity<WrapRes<?>> myUnreadNotifications(Principal principal) {
+        var user = userService.findByEmail(principal.getName());
+        List<Notification> unreadNotifications = notificationService.getUserUnreadNotifications(user.getId());
+
+        return ResponseEntity.ok(WrapRes.success(unreadNotifications));
+    }
+
+    @Operation(summary = "Đếm số notifications chưa đọc", description = "Trả về số lượng notifications chưa đọc", responses = {
+            @ApiResponse(responseCode = "200", description = "Đếm notifications thành công")
+    })
+    @GetMapping("/notifications/unread/count")
+    public ResponseEntity<WrapRes<?>> myUnreadNotificationsCount(Principal principal) {
+        var user = userService.findByEmail(principal.getName());
+        Long count = notificationService.countUserUnreadNotifications(user.getId());
+
+        return ResponseEntity.ok(WrapRes.success(count));
+    }
+
+    @Operation(summary = "Đánh dấu notification đã đọc", description = "Đánh dấu một notification cụ thể là đã đọc", responses = {
+            @ApiResponse(responseCode = "200", description = "Đánh dấu đã đọc thành công")
+    })
+    @PutMapping("/notifications/{id}/read")
+    public ResponseEntity<WrapRes<?>> markNotificationAsRead(
+            @PathVariable Long id,
+            Principal principal) {
+        notificationService.markNotificationAsRead(id);
+        return ResponseEntity.ok(WrapRes.success("Notification marked as read"));
+    }
+
+    @Operation(summary = "Đánh dấu tất cả notifications đã đọc", description = "Đánh dấu tất cả notifications của user là đã đọc", responses = {
+            @ApiResponse(responseCode = "200", description = "Đánh dấu tất cả đã đọc thành công")
+    })
+    @PutMapping("/notifications/read-all")
+    public ResponseEntity<WrapRes<?>> markAllNotificationsAsRead(Principal principal) {
+        var user = userService.findByEmail(principal.getName());
+        notificationService.markAllUserNotificationsAsRead(user.getId());
+        return ResponseEntity.ok(WrapRes.success("All notifications marked as read"));
+    }
+
+    @Operation(summary = "Lấy notifications theo loại", description = "Lấy notifications theo loại cụ thể", responses = {
+            @ApiResponse(responseCode = "200", description = "Lấy notifications theo loại thành công")
+    })
+    @GetMapping("/notifications/type/{type}")
+    public ResponseEntity<WrapRes<?>> getNotificationsByType(
+            @PathVariable String type,
+            Principal principal,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        
+        var user = userService.findByEmail(principal.getName());
+        Pageable pageable = PageRequest.of(page, size);
+      
+        return ResponseEntity.ok(WrapRes.success("Feature coming soon"));
+    }
+
+    @Operation(summary = "Xóa notification", description = "Xóa một notification cụ thể", responses = {
+            @ApiResponse(responseCode = "200", description = "Xóa notification thành công")
+    })
+    @PutMapping("/notifications/{id}/delete")
+    public ResponseEntity<WrapRes<?>> deleteNotification(
+            @PathVariable Long id,
+            Principal principal) {
+        notificationService.deleteNotification(id);
+        return ResponseEntity.ok(WrapRes.success("Notification deleted successfully"));
+    }
 }

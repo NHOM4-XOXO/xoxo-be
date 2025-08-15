@@ -20,8 +20,9 @@ public interface PostLikeRepository extends JpaRepository<PostLike, Long> {
     @Query("SELECT pl FROM PostLike pl WHERE pl.post = :post AND pl.user = :user")
     Optional<PostLike> findByPostAndUser(@Param("post") Post post, @Param("user") User user);
 
-    @Query("SELECT pl FROM PostLike pl JOIN FETCH pl.user u WHERE pl.post = :post")
+    @Query("SELECT pl FROM PostLike pl " +
+            "LEFT JOIN FETCH pl.user u " +
+            "LEFT JOIN FETCH u.roles " +
+            "WHERE pl.post = :post")
     List<PostLike> findAllByPostWithUser(@Param("post") Post post);
 }
-
-
