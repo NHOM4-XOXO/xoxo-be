@@ -53,7 +53,8 @@ public class XoxoApplication {
             }
             // ADMIN
             String adminEmail = "admin@xoxo.com";
-            if (userRepository.findByEmail(adminEmail).isEmpty()) {
+            if (userRepository.findByEmail(adminEmail).isEmpty())
+             {
                 User admin = new User();
                 admin.setEmail(adminEmail);
                 admin.setPassword(passwordEncoder.encode("Admin123@"));
