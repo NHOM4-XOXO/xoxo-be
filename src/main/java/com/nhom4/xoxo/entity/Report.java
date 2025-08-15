@@ -2,11 +2,19 @@ package com.nhom4.xoxo.entity;
 
 import java.time.LocalDate;
 
-import jakarta.persistence.Column;
+import com.nhom4.xoxo.enums.ReportStatus;
+import com.nhom4.xoxo.enums.ReportTargetType;
+
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -24,15 +32,23 @@ public class Report extends BaseEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private long id;
 
-    @Column(name = "report_type", nullable = false)
-    private Integer reportType;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "reporter_id", nullable = false)
+    private User reproter;
 
-    @Column(name = "report_reason", columnDefinition = "TEXT")
+    @Enumerated(EnumType.STRING)
+    private ReportTargetType reportTargetType;
+
+    private Long reportTargetId;
     private String reportReason;
 
-    @Column(name = "status", columnDefinition = "TEXT")
-    private String status;
+    @Enumerated(EnumType.STRING)
+    private ReportStatus status;
 
-    @Column(name = "report_at")
-    private LocalDate reportAt;
+    @PrePersist
+    public void PrePersist() {
+        if (status == null) {
+            status = ReportStatus.PENDING;
+        }
+    }
 }
