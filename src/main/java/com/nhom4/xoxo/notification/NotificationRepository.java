@@ -1,9 +1,9 @@
-package com.nhom4.xoxo.notification;
+// package com.nhom4.xoxo.notification;
 
-import java.util.List;
+// import java.util.List;
 
-import org.springframework.data.mongodb.repository.MongoRepository;
+// import org.springframework.data.mongodb.repository.MongoRepository;
 
-public interface NotificationRepository extends MongoRepository<Notification, String> {
-    List<Notification> findByUserIdOrderByCreatedAtDesc(Long userId);
-}
+// public interface NotificationRepository extends MongoRepository<Notification, String> {
+//     List<Notification> findByUserIdOrderByCreatedAtDesc(Long userId);
+// }

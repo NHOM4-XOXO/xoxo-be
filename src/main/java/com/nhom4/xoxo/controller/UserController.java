@@ -19,7 +19,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.nhom4.xoxo.dto.WrapRes;
-import com.nhom4.xoxo.notification.NotificationService;
+import com.nhom4.xoxo.service.NotificationService;
 import com.nhom4.xoxo.dto.req.UpdateUserRequest;
 import com.nhom4.xoxo.dto.res.UserResponse;
 import com.nhom4.xoxo.entity.User;

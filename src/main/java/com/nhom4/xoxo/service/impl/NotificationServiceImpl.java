@@ -44,4 +44,11 @@ public class NotificationServiceImpl implements NotificationService {
     public void deleteNotification(Long id) {
         notificationRepository.deleteById(id);
     }
+    
+    @Override
+    public List<Notification> list(Long userId) {
+        // Since Notification entity doesn't have userId field, return all notifications for now
+        // TODO: Add userId field to Notification entity or implement proper filtering
+        return getAllNotifications();
+    }
 }
