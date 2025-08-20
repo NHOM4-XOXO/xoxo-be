@@ -58,4 +58,5 @@ public interface UserService {
     boolean updateAvatar(User currentUser, String avatar);
     boolean updateCover(User currentUser, String cover);
     Optional<User> findByUsername(String username);
+    void resendVerificationEmail(String email);
 } 

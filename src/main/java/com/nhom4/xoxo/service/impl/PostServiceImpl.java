@@ -29,9 +29,13 @@ import com.nhom4.xoxo.repository.SharePostRepository;
 import com.nhom4.xoxo.repository.PostLikeRepository;
 import com.nhom4.xoxo.service.CloudinaryService;
 import com.nhom4.xoxo.service.PostService;
+
+import lombok.extern.slf4j.Slf4j;
+
 import com.nhom4.xoxo.service.NotificationService;
 
 @Service
+@Slf4j
 public class PostServiceImpl implements PostService {
 
     private final PostRepository postRepository;
@@ -184,29 +188,50 @@ public class PostServiceImpl implements PostService {
         post.setViewCount(post.getViewCount() + 1);
         postRepository.save(post);
     }
-
     @Override
     @Transactional(transactionManager = "transactionManager")
     public boolean toggleLike(Long postId, User user) {
-        Post post = getPostById(postId).get();
-        Optional<PostLike> existing = postLikeRepository.findByPostAndUser(post, user);
-        if (existing.isPresent()) {
-            postLikeRepository.delete(existing.get());
-            post.setLikeCount(Math.max(0, post.getLikeCount() - 1));
-            postRepository.save(post);
-            return false; // now unliked
+        try {
+            log.info("[PostService] Starting toggleLike for postId: {}, userId: {}", postId, user.getId());
+            
+            Post post = getPostById(postId).get();
+            log.info("[PostService] Found post: {}", post.getId());
+            
+            Optional<PostLike> existing = postLikeRepository.findByPostAndUser(post, user);
+            log.info("[PostService] Existing like found: {}", existing.isPresent());
+            
+            if (existing.isPresent()) {
+                log.info("[PostService] Deleting existing like");
+                postLikeRepository.delete(existing.get());
+                post.setLikeCount(Math.max(0, post.getLikeCount() - 1));
+                postRepository.save(post);
+                log.info("[PostService] Post unliked successfully, new count: {}", post.getLikeCount());
+                return false; // now unliked
+            }
+            
+            log.info("[PostService] Creating new like");
+            PostLike like = PostLike.builder().post(post).user(user).build();
+            PostLike savedLike = postLikeRepository.save(like);
+            log.info("[PostService] Like saved with ID: {}", savedLike.getId());
+            
+            post.setLikeCount(post.getLikeCount() + 1);
+            Post savedPost = postRepository.save(post);
+            log.info("[PostService] Post updated, new count: {}", savedPost.getLikeCount());
+            
+            // Gửi notification cho chủ bài viết (trừ khi user like chính bài viết của mình)
+            if (!post.getAuthor().getId().equals(user.getId())) {
+                log.info("[PostService] Sending notification to post owner: {}", post.getAuthor().getId());
+                notificationService.sendPostLikeNotification(postId, post.getAuthor().getId(), user.getId());
+                log.info("[PostService] Notification sent successfully");
+            }
+            
+            log.info("[PostService] Post liked successfully");
+            return true; // now liked
+            
+        } catch (Exception e) {
+            log.error("[PostService] Error in toggleLike: {}", e.getMessage(), e);
+            throw e;
         }
-        PostLike like = PostLike.builder().post(post).user(user).build();
-        postLikeRepository.save(like);
-        post.setLikeCount(post.getLikeCount() + 1);
-        postRepository.save(post);
-        
-        // Gửi notification cho chủ bài viết (trừ khi user like chính bài viết của mình)
-        if (!post.getAuthor().getId().equals(user.getId())) {
-            notificationService.sendPostLikeNotification(postId, post.getAuthor().getId(), user.getId());
-        }
-        
-        return true; // now liked
     }
 
     @Override
