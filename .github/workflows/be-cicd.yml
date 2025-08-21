@@ -73,8 +73,10 @@ jobs:
           echo "MONGO_URI=${{ secrets.MONGO_URI }}" >> .env
           echo "MONGO_DATABASE=${{ secrets.MONGO_DATABASE }}" >> .env
 
-      - name: Verify files
-        run: ls -lha
+      - name: Check generated files
+        run: |
+          ls -lha
+          cat .env | head -n 20
 
       - name: Copy docker-compose + .env to EC2
         uses: appleboy/scp-action@v0.1.7
