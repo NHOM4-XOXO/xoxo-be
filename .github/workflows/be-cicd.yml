@@ -2,7 +2,7 @@ name: CI/CD pipeline for Backend Service
 
 on:
   push:
-    branches: [main]
+    branches: ["*"]
 
 env:
   DOCKER_IMAGE: nguyenthanhtai1604/xoxo_web_service
