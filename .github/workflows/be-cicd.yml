@@ -78,6 +78,12 @@ jobs:
           ls -lha
           cat .env | head -n 20
 
+      - name: Debug workspace
+        run: |
+          pwd
+          ls -lha
+          ls -lha .env || echo ".env not found"
+          ls -lha docker-compose.yml || echo "docker-compose.yml not found"
       - name: Copy docker-compose + .env to EC2
         uses: appleboy/scp-action@v0.1.7
         with:
