@@ -1,14 +1,11 @@
-# Sử dụng JDK 21 để chạy ứng dụng
-FROM eclipse-temurin:21-jdk AS runtime
-
-# Đặt thư mục làm việc
+# build stage
+FROM maven:3.9.6-eclipse-temurin-17 AS builder
 WORKDIR /app
+COPY . .
+RUN mvn clean package -DskipTests
 
-# Copy file jar đã build sẵn từ target vào container
-COPY target/*.jar app.jar
-
-# Expose port (ví dụ: 8080)
-EXPOSE 8080
-
-# Chạy ứng dụng
+# run stage
+FROM eclipse-temurin:17-jdk-jammy
+WORKDIR /app
+COPY --from=builder /app/target/*.jar app.jar
 ENTRYPOINT ["java", "-jar", "app.jar"]
