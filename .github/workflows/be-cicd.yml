@@ -3,7 +3,7 @@ name: CI/CD pipeline
 on:
   push:
     branches:
-      - dev
+      - feature/setup-ci-cd
 
 jobs:
   build-and-deploy:
