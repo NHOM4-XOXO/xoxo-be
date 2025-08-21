@@ -10,6 +10,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.nhom4.xoxo.dto.res.CommentItemResponse;
 import com.nhom4.xoxo.dto.res.PostItemResponse;
 import com.nhom4.xoxo.dto.res.SharePostItemResponse;
+import com.nhom4.xoxo.dto.res.UserLikeResponse;
 import com.nhom4.xoxo.entity.Comment;
 import com.nhom4.xoxo.entity.Media;
 import com.nhom4.xoxo.entity.MediaRoom;
@@ -29,7 +30,12 @@ import com.nhom4.xoxo.repository.PostLikeRepository;
 import com.nhom4.xoxo.service.CloudinaryService;
 import com.nhom4.xoxo.service.PostService;
 
+import lombok.extern.slf4j.Slf4j;
+
+import com.nhom4.xoxo.service.NotificationService;
+
 @Service
+@Slf4j
 public class PostServiceImpl implements PostService {
 
     private final PostRepository postRepository;
@@ -42,10 +48,12 @@ public class PostServiceImpl implements PostService {
     private final MediaRepository mediaRepository;
     private final PostLikeRepository postLikeRepository;
     private final CloudinaryService cloudinaryService;
+    private final NotificationService notificationService;
 
     public PostServiceImpl(PostRepository postRepository, CommentRepository commentRepository,
             SharePostRepository sharePostRepository, MediaRoomRepository mediaRoomRepository,
-            MediaRepository mediaRepository, PostLikeRepository postLikeRepository, CloudinaryService cloudinaryService) {
+            MediaRepository mediaRepository, PostLikeRepository postLikeRepository, 
+            CloudinaryService cloudinaryService, NotificationService notificationService) {
         this.postRepository = postRepository;
         this.commentRepository = commentRepository;
         this.sharePostRepository = sharePostRepository;
@@ -53,6 +61,7 @@ public class PostServiceImpl implements PostService {
         this.mediaRepository = mediaRepository;
         this.postLikeRepository = postLikeRepository;
         this.cloudinaryService = cloudinaryService;
+        this.notificationService = notificationService;
     }
 
     @Override
@@ -107,13 +116,13 @@ public class PostServiceImpl implements PostService {
     public void addMediaToPost(Long postId, Long mediaId) {
         Media media = mediaRepository.findById(mediaId)
                 .orElseThrow(() -> new NotFoundException("Media not found with id: " + mediaId));
-
+    
         MediaRoom mediaRoom = MediaRoom.builder()
                 .media(media)
                 .targetId(postId)
                 .targetType(MediaRoomTargetType.POST)
                 .build();
-
+    
         mediaRoomRepository.save(mediaRoom);
     }
 
@@ -179,23 +188,50 @@ public class PostServiceImpl implements PostService {
         post.setViewCount(post.getViewCount() + 1);
         postRepository.save(post);
     }
-
     @Override
     @Transactional(transactionManager = "transactionManager")
     public boolean toggleLike(Long postId, User user) {
-        Post post = getPostById(postId).get();
-        Optional<PostLike> existing = postLikeRepository.findByPostAndUser(post, user);
-        if (existing.isPresent()) {
-            postLikeRepository.delete(existing.get());
-            post.setLikeCount(Math.max(0, post.getLikeCount() - 1));
-            postRepository.save(post);
-            return false; // now unliked
+        try {
+            log.info("[PostService] Starting toggleLike for postId: {}, userId: {}", postId, user.getId());
+            
+            Post post = getPostById(postId).get();
+            log.info("[PostService] Found post: {}", post.getId());
+            
+            Optional<PostLike> existing = postLikeRepository.findByPostAndUser(post, user);
+            log.info("[PostService] Existing like found: {}", existing.isPresent());
+            
+            if (existing.isPresent()) {
+                log.info("[PostService] Deleting existing like");
+                postLikeRepository.delete(existing.get());
+                post.setLikeCount(Math.max(0, post.getLikeCount() - 1));
+                postRepository.save(post);
+                log.info("[PostService] Post unliked successfully, new count: {}", post.getLikeCount());
+                return false; // now unliked
+            }
+            
+            log.info("[PostService] Creating new like");
+            PostLike like = PostLike.builder().post(post).user(user).build();
+            PostLike savedLike = postLikeRepository.save(like);
+            log.info("[PostService] Like saved with ID: {}", savedLike.getId());
+            
+            post.setLikeCount(post.getLikeCount() + 1);
+            Post savedPost = postRepository.save(post);
+            log.info("[PostService] Post updated, new count: {}", savedPost.getLikeCount());
+            
+            // Gửi notification cho chủ bài viết (trừ khi user like chính bài viết của mình)
+            if (!post.getAuthor().getId().equals(user.getId())) {
+                log.info("[PostService] Sending notification to post owner: {}", post.getAuthor().getId());
+                notificationService.sendPostLikeNotification(postId, post.getAuthor().getId(), user.getId());
+                log.info("[PostService] Notification sent successfully");
+            }
+            
+            log.info("[PostService] Post liked successfully");
+            return true; // now liked
+            
+        } catch (Exception e) {
+            log.error("[PostService] Error in toggleLike: {}", e.getMessage(), e);
+            throw e;
         }
-        PostLike like = PostLike.builder().post(post).user(user).build();
-        postLikeRepository.save(like);
-        post.setLikeCount(post.getLikeCount() + 1);
-        postRepository.save(post);
-        return true; // now liked
     }
 
     @Override
@@ -207,6 +243,12 @@ public class PostServiceImpl implements PostService {
         Comment saved = commentRepository.save(b.build());
         post.setCommentCount(post.getCommentCount() + 1);
         postRepository.save(post);
+        
+        // Gửi notification cho chủ bài viết (trừ khi user comment chính bài viết của mình)
+        if (!post.getAuthor().getId().equals(author.getId())) {
+            notificationService.sendPostCommentNotification(postId, post.getAuthor().getId(), author.getId());
+        }
+        
         return new CommentItemResponse(
             saved.getId(), saved.getContent(), saved.getLikeCount(),
             author.getId(), author.getFirstName(), author.getLastName(), author.getAvatarUrl(),
@@ -223,6 +265,12 @@ public class PostServiceImpl implements PostService {
                 SharePost.builder().originalPost(post).sharer(sharer).shareContent(shareContent).build());
         post.setShareCount(post.getShareCount() + 1);
         postRepository.save(post);
+        
+        // Gửi notification cho chủ bài viết (trừ khi user share chính bài viết của mình)
+        if (!post.getAuthor().getId().equals(sharer.getId())) {
+            notificationService.sendPostShareNotification(postId, post.getAuthor().getId(), sharer.getId());
+        }
+        
         return new SharePostItemResponse(
                 saved.getId(), saved.getShareContent(),
                 post.getId(),
@@ -233,10 +281,22 @@ public class PostServiceImpl implements PostService {
 
     @Override
     @Transactional(readOnly = true, transactionManager = "transactionManager")
-    public List<User> getUsersLikedPost(Long postId) {
+    public List<UserLikeResponse> getUsersLikedPost(Long postId) {
         Post post = getPostById(postId).get();
-        return postLikeRepository.findAllByPostWithUser(post).stream()
+        List<PostLike> postLikes = postLikeRepository.findAllByPostWithUser(post);
+        
+        return postLikes.stream()
                 .map(PostLike::getUser)
+                .map(user -> UserLikeResponse.builder()
+                    .id(user.getId())
+                    .firstName(user.getFirstName())
+                    .lastName(user.getLastName())
+                    .avatarUrl(user.getAvatarUrl())
+                    .username(user.getUsername())
+                    .roles(user.getRoles().stream()
+                        .map(role -> role.name())
+                        .collect(Collectors.toSet()))
+                    .build())
                 .collect(Collectors.toList());
     }
 

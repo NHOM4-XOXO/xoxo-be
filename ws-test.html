@@ -1,0 +1,46 @@
+<!doctype html>
+<html>
+<body>
+  <div>
+    <label>JWT (kèm Bearer):</label><br/>
+    <textarea id="token" rows="3" cols="90">Bearer ey...</textarea><br/>
+    <label>Room ID:</label>
+    <input id="roomId" value="1"/><br/><br/>
+    <button onclick="connect()">Connect</button>
+    <input id="msg" placeholder="message"/>
+    <button onclick="sendText()">Send</button>
+  </div>
+  <pre id="log" style="border:1px solid #ccc; padding:8px; height:200px; overflow:auto"></pre>
+
+  <script src="https://unpkg.com/@stomp/stompjs@7.0.0/bundles/stomp.umd.min.js"></script>
+  <script>
+    let client, sub, log = m => { const el = document.getElementById('log'); el.textContent += m + "\n"; el.scrollTop = el.scrollHeight; };
+
+    function connect() {
+      const token = document.getElementById('token').value.trim();
+      const roomId = document.getElementById('roomId').value.trim();
+      client = new StompJs.Client({
+        brokerURL: 'ws://localhost:8080/ws',
+        connectHeaders: { Authorization: token },
+        debug: (m) => log('[stomp] ' + m),
+      });
+      client.onConnect = () => {
+        log('Connected');
+        sub = client.subscribe(`/topic/chat/${roomId}`, m => log('recv: ' + m.body));
+        window._roomId = roomId;
+      };
+      client.onStompError = f => log('STOMP error: ' + f.headers['message']);
+      client.activate();
+    }
+
+    function sendText() {
+      const text = document.getElementById('msg').value;
+      const roomId = window._roomId;
+      client.publish({
+        destination: '/app/send-message',
+        body: JSON.stringify({ chatRoomId: Number(roomId), content: text, type: 'TEXT' }),
+      });
+    }
+  </script>
+</body>
+</html>

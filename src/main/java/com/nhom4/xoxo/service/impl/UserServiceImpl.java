@@ -49,9 +49,12 @@ import com.nhom4.xoxo.service.TokenService;
 import com.nhom4.xoxo.service.UserService;
 
 import jakarta.servlet.http.HttpServletResponse;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @Service
 public class UserServiceImpl implements UserService {
+    private static final Logger log = LoggerFactory.getLogger(UserServiceImpl.class);
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final MailProducer mailProducer;
@@ -104,14 +107,19 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    @Transactional
+    @Transactional("transactionManager")
     public UserResponse registerUser(RegisterRequest request) {
         if (userRepository.existsByEmail(request.getEmail())) {
             throw new ServiceException("Email already exists");
         }
+        
+ 
+        String password = request.getPassword();
+    
+        
         User user = new User();
         user.setEmail(request.getEmail());
-        user.setPassword(passwordEncoder.encode(request.getPassword()));
+        user.setPassword(passwordEncoder.encode(password));
         user.setFirstName(request.getFirstName());
         user.setLastName(request.getLastName());
         // Set roles
@@ -163,8 +171,20 @@ public class UserServiceImpl implements UserService {
                 htmlContent);
         try {
             mailProducer.sendMail(mailMessage);
+            log.info("Email xác thực đã được gửi thành công qua Kafka cho user: {}", savedUser.getEmail());
         } catch (Exception e) {
-            throw new ServiceException("Đăng ký thất bại do gửi mail xác thực không thành công. Vui lòng thử lại sau.");
+            log.error("Lỗi gửi email qua Kafka cho user {}: {}", savedUser.getEmail(), e.getMessage(), e);
+            
+            // Fallback: Gửi email trực tiếp qua SMTP
+            try {
+                log.info("Thử gửi email trực tiếp qua SMTP cho user: {}", savedUser.getEmail());
+                emailService.sendMail(mailMessage);
+                log.info("Email xác thực đã được gửi thành công qua SMTP cho user: {}", savedUser.getEmail());
+            } catch (Exception smtpException) {
+                log.error("Lỗi gửi email qua SMTP cho user {}: {}", savedUser.getEmail(), smtpException.getMessage(), smtpException);
+                // Không throw exception để user vẫn được đăng ký thành công
+                // Email có thể được gửi lại sau hoặc admin có thể xử lý thủ công
+            }
         }
         return userResponse;
     }
@@ -421,7 +441,67 @@ public class UserServiceImpl implements UserService {
         forgotPassword(request);
     }
     
+    @Override
+    @Transactional
+    public void resendVerificationEmail(String email) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ServiceException("Email không tồn tại trong hệ thống"));
+        
+        if (user.isEnabled()) {
+            throw new ServiceException("Tài khoản đã được xác thực");
+        }
+        
+        // Xóa token cũ nếu có
+        List<VerificationToken> oldTokens = verificationTokenRepository.findByUserAndType(user, "REGISTER");
+        verificationTokenRepository.deleteAll(oldTokens);
+        
+        // Tạo token mới
+        String token = UUID.randomUUID().toString();
+        VerificationToken verificationToken = new VerificationToken(token, user,
+                LocalDateTime.now().plusHours(24), "REGISTER");
+        verificationTokenRepository.save(verificationToken);
+        
+        // Gửi email xác thực
+        String verifyLink = userBaseUrl + "/verify?token=" + token;
+        String htmlContent = String.format(
+                """
+                <html>
+                    <body>
+                        <h2>Xác nhận đăng ký tài khoản</h2>
+                        <p>Cảm ơn bạn đã đăng ký tài khoản tại XOXO Social Media.</p>
+                        <p>Vui lòng xác nhận email bằng cách bấm vào link sau:</p>
+                        <p><a href=\"%s\" style=\"background-color: #4CAF50; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;\">Xác nhận tài khoản</a></p>
+                        <p>Hoặc copy link này: <a href=\"%s\">%s</a></p>
+                        <p><b>Token:</b> <span style=\"color: #d32f2f;\">%s</span></p>
+                        <p>Link có hiệu lực trong 24 giờ.</p>
+                        <p>Trân trọng,<br>Team XOXO</p>
+                    </body>
+                </html>
+                """,
+                verifyLink, verifyLink, verifyLink, token);
 
+        MailMessage mailMessage = new MailMessage(
+                user.getEmail(),
+                "Xác nhận đăng ký tài khoản (Gửi lại)",
+                htmlContent);
+        
+        try {
+            mailProducer.sendMail(mailMessage);
+            log.info("Email xác thực đã được gửi lại thành công qua Kafka cho user: {}", user.getEmail());
+        } catch (Exception e) {
+            log.error("Lỗi gửi email qua Kafka cho user {}: {}", user.getEmail(), e.getMessage(), e);
+            
+            // Fallback: Gửi email trực tiếp qua SMTP
+            try {
+                log.info("Thử gửi email trực tiếp qua SMTP cho user: {}", user.getEmail());
+                emailService.sendMail(mailMessage);
+                log.info("Email xác thực đã được gửi lại thành công qua SMTP cho user: {}", user.getEmail());
+            } catch (Exception smtpException) {
+                log.error("Lỗi gửi email qua SMTP cho user {}: {}", user.getEmail(), smtpException.getMessage(), smtpException);
+                throw new ServiceException("Không thể gửi email xác thực. Vui lòng thử lại sau.");
+            }
+        }
+    }
 
     @Override
     @Transactional
@@ -429,8 +509,14 @@ public class UserServiceImpl implements UserService {
         // Sử dụng TokenService để validate token
         VerificationToken verificationToken = tokenService.validateToken(request.getToken(), "FORGOT_PASSWORD");
         
+        // Validate password byte length for BCrypt compatibility
+        String newPassword = request.getNewPassword();
+        if (newPassword.getBytes().length > 72) {
+            throw new ServiceException("Mật khẩu quá dài. Mật khẩu không được vượt quá 72 ký tự.");
+        }
+        
         User user = verificationToken.getUser();
-        user.setPassword(passwordEncoder.encode(request.getNewPassword()));
+        user.setPassword(passwordEncoder.encode(newPassword));
         user.setUpdatedAt(LocalDateTime.now());
         userRepository.save(user);
         
@@ -511,6 +597,11 @@ public class UserServiceImpl implements UserService {
 
         User user = userRepository.findByEmail(currentUser.getUsername())
                 .orElseThrow(() -> new NotFoundException("User not found"));
+
+        // Validate new password byte length for BCrypt compatibility
+        if (newPassword.getBytes().length > 72) {
+            throw new ServiceException("Mật khẩu mới quá dài. Mật khẩu không được vượt quá 72 ký tự.");
+        }
 
         // Nếu passwordSet = false thì không cần oldPassword
         if (!user.isPasswordSet()) {

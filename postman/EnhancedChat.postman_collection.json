@@ -1,0 +1,131 @@
+{
+  "info": {
+    "name": "XOXO Enhanced Chat",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_postman_id": "e2e-chat-xoxo-collection"
+  },
+  "variable": [
+    { "key": "base_url", "value": "http://localhost:8080" },
+    { "key": "token", "value": "<JWT_TOKEN>" },
+    { "key": "roomId", "value": "1" },
+    { "key": "messageId", "value": "1" },
+    { "key": "fileMessageId", "value": "1" },
+    { "key": "otherUserId", "value": "2" },
+    { "key": "fcmToken", "value": "test-fcm-token" },
+    { "key": "q", "value": "hello" },
+    { "key": "reaction", "value": "👍" }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [ { "key": "token", "value": "{{token}}", "type": "string" } ]
+  },
+  "item": [
+    {
+      "name": "Chat Rooms",
+      "item": [
+        {
+          "name": "Create Room (GROUP)",
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "url": "{{base_url}}/api/v1/chat/rooms",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Demo Room\",\n  \"description\": \"\",\n  \"type\": \"GROUP\",\n  \"participantIds\": [2,3]\n}"
+            }
+          }
+        },
+        { "name": "Get My Rooms", "request": { "method": "GET", "url": "{{base_url}}/api/v1/chat/rooms" } },
+        { "name": "Get Room By ID", "request": { "method": "GET", "url": "{{base_url}}/api/v1/chat/rooms/{{roomId}}" } },
+        { "name": "Update Room", "request": {
+          "method": "PUT",
+          "header": [ { "key": "Content-Type", "value": "application/json" } ],
+          "url": "{{base_url}}/api/v1/chat/rooms/{{roomId}}",
+          "body": { "mode": "raw", "raw": "{\n  \"name\": \"Updated Name\",\n  \"description\": \"desc\",\n  \"type\": \"GROUP\",\n  \"participantIds\": [2,3]\n}" }
+        }},
+        { "name": "Delete Room", "request": { "method": "DELETE", "url": "{{base_url}}/api/v1/chat/rooms/{{roomId}}" } },
+        { "name": "Add Participant", "request": { "method": "POST", "url": "{{base_url}}/api/v1/chat/rooms/{{roomId}}/participants/{{otherUserId}}" } },
+        { "name": "Remove Participant", "request": { "method": "DELETE", "url": "{{base_url}}/api/v1/chat/rooms/{{roomId}}/participants/{{otherUserId}}" } },
+        { "name": "Leave Room", "request": { "method": "POST", "url": "{{base_url}}/api/v1/chat/rooms/{{roomId}}/leave" } },
+        { "name": "Unread Count", "request": { "method": "GET", "url": "{{base_url}}/api/v1/chat/rooms/{{roomId}}/unread-count" } },
+        { "name": "Direct Chat (get/create)", "request": { "method": "POST", "url": "{{base_url}}/api/v1/chat/direct/{{otherUserId}}" } }
+      ]
+    },
+    {
+      "name": "Encryption (E2EE)",
+      "item": [
+        { "name": "Generate Keys (current user)", "request": { "method": "POST", "url": "{{base_url}}/api/v1/enhanced-chat/encryption/keys/generate" } },
+        { "name": "Get User Public Key", "request": { "method": "GET", "url": "{{base_url}}/api/v1/enhanced-chat/encryption/keys/public/{{otherUserId}}" } },
+        {
+          "name": "Send Encrypted Message",
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "url": "{{base_url}}/api/v1/enhanced-chat/messages/encrypted",
+            "body": { "mode": "raw", "raw": "{\n  \"chatRoomId\": {{roomId}},\n  \"content\": \"Hello E2EE\",\n  \"type\": \"TEXT\"\n}" }
+          }
+        },
+        { "name": "Decrypt Message (current user)", "request": { "method": "GET", "url": "{{base_url}}/api/v1/enhanced-chat/messages/{{messageId}}/decrypt" } }
+      ]
+    },
+    {
+      "name": "Messages (Standard)",
+      "item": [
+        { "name": "Get Messages in Room", "request": { "method": "GET", "url": "{{base_url}}/api/v1/chat/rooms/{{roomId}}/messages?page=0&size=20" } },
+        { "name": "Get Message By ID", "request": { "method": "GET", "url": "{{base_url}}/api/v1/chat/messages/{{messageId}}" } },
+        { "name": "Delete Message", "request": { "method": "DELETE", "url": "{{base_url}}/api/v1/chat/messages/{{messageId}}" } },
+        { "name": "Mark Read", "request": { "method": "POST", "url": "{{base_url}}/api/v1/chat/messages/{{messageId}}/read" } },
+        { "name": "Mark Delivered", "request": { "method": "POST", "url": "{{base_url}}/api/v1/chat/messages/{{messageId}}/delivered" } }
+      ]
+    },
+    {
+      "name": "Files",
+      "item": [
+        {
+          "name": "Upload File",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/api/v1/enhanced-chat/rooms/{{roomId}}/files/upload",
+            "body": {
+              "mode": "formdata",
+              "formdata": [ { "key": "file", "type": "file", "src": "C:/path/to/image.jpg" } ]
+            }
+          }
+        },
+        { "name": "List Files in Room", "request": { "method": "GET", "url": "{{base_url}}/api/v1/enhanced-chat/rooms/{{roomId}}/files?page=0&size=20" } },
+        { "name": "Download File", "request": { "method": "GET", "url": "{{base_url}}/api/v1/enhanced-chat/files/{{fileMessageId}}/download" } },
+        { "name": "Delete File", "request": { "method": "DELETE", "url": "{{base_url}}/api/v1/enhanced-chat/files/{{fileMessageId}}" } },
+        {
+          "name": "Share File with Users",
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "url": "{{base_url}}/api/v1/enhanced-chat/files/{{fileMessageId}}/share",
+            "body": { "mode": "raw", "raw": "[2,3]" }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Notifications & Presence",
+      "item": [
+        { "name": "Register Device (FCM)", "request": { "method": "POST", "url": "{{base_url}}/api/v1/enhanced-chat/devices/register?deviceId=dev-1&fcmToken={{fcmToken}}&deviceType=ANDROID&deviceModel=Pixel&operatingSystem=Android14&appVersion=1.0.0" } },
+        { "name": "Toggle Push (enable)", "request": { "method": "POST", "url": "{{base_url}}/api/v1/enhanced-chat/notifications/toggle?enabled=true" } },
+        { "name": "Toggle Push (disable)", "request": { "method": "POST", "url": "{{base_url}}/api/v1/enhanced-chat/notifications/toggle?enabled=false" } }
+      ]
+    },
+    {
+      "name": "Search, Pin & Reaction",
+      "item": [
+        { "name": "Search Messages", "request": { "method": "GET", "url": "{{base_url}}/api/v1/enhanced-chat/rooms/{{roomId}}/messages/search?query={{q}}&page=0&size=20" } },
+        { "name": "Pin Message", "request": { "method": "POST", "url": "{{base_url}}/api/v1/enhanced-chat/messages/{{messageId}}/pin" } },
+        { "name": "Unpin Message", "request": { "method": "DELETE", "url": "{{base_url}}/api/v1/enhanced-chat/messages/{{messageId}}/pin" } },
+        { "name": "Get Pinned Messages", "request": { "method": "GET", "url": "{{base_url}}/api/v1/enhanced-chat/rooms/{{roomId}}/messages/pinned" } },
+        { "name": "React to Message", "request": { "method": "POST", "url": "{{base_url}}/api/v1/enhanced-chat/messages/{{messageId}}/reactions?reaction={{reaction}}" } },
+        { "name": "Remove Reaction", "request": { "method": "DELETE", "url": "{{base_url}}/api/v1/enhanced-chat/messages/{{messageId}}/reactions/{{reaction}}" } }
+      ]
+    }
+  ]
+}
+
+
