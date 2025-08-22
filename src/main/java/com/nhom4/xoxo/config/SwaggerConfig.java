@@ -34,7 +34,7 @@ public class SwaggerConfig {
                                 .servers(List.of(
                                                 new Server().url("http://localhost:8080")
                                                                 .description("Development Server"),
-                                                new Server().url("https://api.xoxo.com")
+                                                new Server().url("http://18.136.198.78:8080")
                                                                 .description("Production Server")))
                                 .addSecurityItem(new SecurityRequirement().addList("Bearer Authentication"))
                                 .components(new Components()
