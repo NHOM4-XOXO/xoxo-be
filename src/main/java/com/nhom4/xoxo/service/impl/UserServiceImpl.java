@@ -560,7 +560,7 @@ public class UserServiceImpl implements UserService {
 
 
     @Override
-    @Transactional
+    @Transactional(transactionManager = "transactionManager")
     public String verifyAccount(String token) {
         // Sử dụng TokenService để validate token
         VerificationToken verificationToken = tokenService.validateToken(token, "REGISTER");

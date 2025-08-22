@@ -30,7 +30,7 @@ public class TokenServiceImpl implements TokenService {
     }
     
     @Override
-    @Transactional
+    @Transactional(transactionManager = "transactionManager")
     public VerificationToken createForgotPasswordToken(String email) {
         log.info("[TokenService] === CREATE/REGENERATE TOKEN START ===");
         log.debug("[TokenService] Email: {}", email);
@@ -64,7 +64,7 @@ public class TokenServiceImpl implements TokenService {
     }
     
     @Override
-    @Transactional
+    @Transactional(transactionManager = "transactionManager")
     public VerificationToken regenerateForgotPasswordToken(String email) {
         // Gọi lại method createForgotPasswordToken vì logic giống hệt nhau
         return createForgotPasswordToken(email);
@@ -85,7 +85,6 @@ public class TokenServiceImpl implements TokenService {
     }
     
     @Override
-    @Transactional
     public void deleteToken(VerificationToken token) {
         if (token != null) {
             verificationTokenRepository.delete(token);
