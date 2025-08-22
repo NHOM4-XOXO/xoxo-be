@@ -67,11 +67,18 @@ public class SecurityConfig {
                         .requestMatchers("/api/admin/**").hasAnyRole("ADMIN", "OWNER")
                         .requestMatchers("/api/owner/**").hasRole("OWNER")
                         .requestMatchers("/api/user/**").hasAnyRole("USER", "ADMIN", "OWNER")
+                        .requestMatchers("/login", "/oauth2/**").permitAll()
                         .anyRequest().permitAll())
                 .oauth2Login(oauth2 -> oauth2
                         .loginPage("/login")
                         .defaultSuccessUrl("/oauth2/success")
-                        .successHandler(oAuth2SuccessHandler()))
+                        .successHandler(oAuth2SuccessHandler())
+                        .failureUrl("/oauth2/error"))
+                .logout(logout -> logout
+                        .logoutUrl("/logout")
+                        .logoutSuccessUrl("/login")
+                        .invalidateHttpSession(true)
+                        .deleteCookies("refreshToken"))
                 .addFilterBefore(jwtAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class);
 
         return http.build();

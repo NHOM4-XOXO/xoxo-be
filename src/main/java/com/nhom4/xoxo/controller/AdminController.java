@@ -109,6 +109,28 @@ public class AdminController {
                 "user", userResponse)));
     }
 
+    @Operation(summary = "Enable user bị disabled", description = "Chỉ ADMIN hoặc OWNER mới có quyền enable user.")
+    @ApiResponse(responseCode = "200", description = "Enable user thành công")
+    @PatchMapping("/users/{userId}/enable")
+    public ResponseEntity<WrapRes<?>> enableUser(
+            @Parameter(description = "ID của user cần enable") @PathVariable Long userId) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        String currentUserEmail = authentication.getName();
+        User currentUser = userService.findByEmail(currentUserEmail);
+        
+        if (!userService.canToggleUserStatus(currentUser)) {
+            return ResponseEntity.status(403)
+                    .body(WrapRes.error(WrapResStatus.SECURITY_ERROR, "Access denied. Admin or Owner role required."));
+        }
+        
+        User updatedUser = userService.toggleUserStatus(userId, true, currentUser);
+        UserResponse userResponse = modelMapper.map(updatedUser, UserResponse.class);
+        
+        return ResponseEntity.ok(WrapRes.success(Map.of(
+                "message", "User enabled successfully",
+                "user", userResponse)));
+    }
+
     @Operation(summary = "Lấy thông tin chi tiết user theo id", description = "Chỉ ADMIN, OWNER hoặc chính user đó mới có quyền xem thông tin chi tiết."
 
     )

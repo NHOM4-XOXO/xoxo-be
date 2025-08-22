@@ -134,6 +134,7 @@ public class UserServiceImpl implements UserService {
         user.setUsername(username);
 
         user.setAuthProvider(AuthProvider.LOCAL);
+        // LOCAL users cần xác thực email, OAuth2 users được enable mặc định
         user.setEnabled(false);
 
         User savedUser = userRepository.save(user);

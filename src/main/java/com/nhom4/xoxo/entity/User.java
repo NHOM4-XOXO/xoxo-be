@@ -77,7 +77,7 @@ public class User extends BaseEntity {
 
     @Column(nullable = false)
     @Builder.Default
-    private boolean enabled = false;
+    private boolean enabled = true;
 
     @Column(nullable = false, unique = true, length = 30, name = "username")
     private String username;
