@@ -84,6 +84,10 @@ jobs:
           ls -lha
           ls -lha .env || echo ".env not found"
           ls -lha docker-compose.yml || echo "docker-compose.yml not found"
+          
+      - name: Install libcrypt1
+        run: sudo apt-get update && sudo apt-get install -y libcrypt1
+
       - name: Copy docker-compose + .env to EC2
         uses: appleboy/scp-action@v0.1.7
         with:
