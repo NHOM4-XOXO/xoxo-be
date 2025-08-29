@@ -16,8 +16,8 @@ public class CorsConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
         
-        // Cho phép tất cả origins (có thể thay đổi thành specific domains)
-        configuration.setAllowedOriginPatterns(List.of("*"));
+        // Chỉ định rõ origins khi dùng allowCredentials=true
+        configuration.setAllowedOrigins(List.of("http://xoxo.id.vn:81", "http://localhost:3000","http://xoxo.id.vn:80"));
         
         // Cho phép các HTTP methods
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));

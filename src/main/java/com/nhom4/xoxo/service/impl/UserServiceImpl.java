@@ -545,13 +545,15 @@ public class UserServiceImpl implements UserService {
         // 5. Lưu refreshToken vào Redis (7 ngày)
         refreshTokenService.saveRefreshToken(refreshToken, user.getEmail().toString(), 7, TimeUnit.DAYS);
 
-        // 6. Set refreshToken vào HttpOnly cookie
+        // 6. Set refreshToken vào HttpOnly cookie (cross-site)
+        boolean isProd = !"development".equalsIgnoreCase(System.getenv("NODE_ENV"));
         ResponseCookie cookie = ResponseCookie.from("refreshToken", refreshToken)
                 .httpOnly(true)
-                .secure(false) // true nếu dùng HTTPS
+                .secure(isProd)
                 .path("/")
                 .maxAge(Duration.ofDays(7))
-                .sameSite("Strict")
+                .sameSite("None")
+                .domain(isProd ? ".xoxo.id.vn" : null)
                 .build();
         response.addHeader("Set-Cookie", cookie.toString());
 
