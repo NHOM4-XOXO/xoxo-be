@@ -6,7 +6,7 @@ import org.springframework.data.neo4j.core.Neo4jClient;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.stereotype.Service;
 
-import com.nhom4.xoxo.graph.projection.SuggestedFriendProjection;
+import com.nhom4.xoxo.graph.projection.SuggestedFriendDto;
 import com.nhom4.xoxo.graph.repository.UserGraphRepository;
 
 import lombok.RequiredArgsConstructor;
@@ -42,7 +42,7 @@ public class SocialGraphService {
     }
 
     @Transactional(readOnly = true, transactionManager = "neo4jTransactionManager")
-    public List<SuggestedFriendProjection> suggestFriends(Long userId) {
+    public List<SuggestedFriendDto> suggestFriends(Long userId) {
         return userGraphRepository.suggestFriendsViaMutuals(userId);
     }
 

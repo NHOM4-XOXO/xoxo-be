@@ -30,7 +30,8 @@ public class EmailServiceImpl implements EmailService {
     }
     
     @Override
-    @Transactional(rollbackFor = Exception.class)
+    
+    @Transactional(transactionManager = "transactionManager",rollbackFor = Exception.class)
     public void sendMailWithRollback(MailMessage mailMessage, VerificationToken verificationToken) {
         try {
             // Gửi mail
@@ -57,7 +58,7 @@ public class EmailServiceImpl implements EmailService {
     }
     
     @Override
-    @Transactional(rollbackFor = Exception.class)
+    @Transactional(transactionManager = "transactionManager",rollbackFor = Exception.class)
     public void sendMail(MailMessage mailMessage) {
         try {
             mailProducer.sendMail(mailMessage);

@@ -15,6 +15,7 @@ import com.nhom4.xoxo.exception.NotFoundException;
 import com.nhom4.xoxo.repository.ChatRoomRepository;
 import com.nhom4.xoxo.service.PushNotificationService;
 
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -28,6 +29,7 @@ public class ChatConsumer {
     private PushNotificationService pushNotificationService;
 
     @KafkaListener(topics = "chat-messages", groupId = "chat-group")
+    @Transactional
     public void consumeChatMessage(MongoChatMessage message) {
         try {
             log.info("Processing chat message: room={} msgId={} sender={}", message.getChatRoomId(), message.getMessageId(), message.getSenderId());

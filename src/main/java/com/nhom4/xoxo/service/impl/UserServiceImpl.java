@@ -400,7 +400,7 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    @Transactional
+    @Transactional( transactionManager = "transactionManager")
     public void forgotPassword(ForgotPasswordRequest request) {
         // Sử dụng TokenService để tạo token (tự động xóa token cũ)
         VerificationToken verificationToken = tokenService.createForgotPasswordToken(request.getEmail());
@@ -436,14 +436,14 @@ public class UserServiceImpl implements UserService {
     }
     
     @Override
-    @Transactional
+    @Transactional( transactionManager = "transactionManager")
     public void regenerateForgotPassword(ForgotPasswordRequest request) {
         // Gọi lại method forgotPassword vì logic giống hệt nhau
         forgotPassword(request);
     }
     
     @Override
-    @Transactional
+    @Transactional( transactionManager = "transactionManager")
     public void resendVerificationEmail(String email) {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new ServiceException("Email không tồn tại trong hệ thống"));
@@ -505,7 +505,7 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    @Transactional
+    @Transactional( transactionManager = "transactionManager")
     public void resetPassword(ResetPasswordRequest request) {
         // Sử dụng TokenService để validate token
         VerificationToken verificationToken = tokenService.validateToken(request.getToken(), "FORGOT_PASSWORD");
@@ -563,7 +563,7 @@ public class UserServiceImpl implements UserService {
 
 
     @Override
-    @Transactional(transactionManager = "transactionManager")
+    @Transactional( transactionManager = "transactionManager")
     public String verifyAccount(String token) {
         // Sử dụng TokenService để validate token
         VerificationToken verificationToken = tokenService.validateToken(token, "REGISTER");
@@ -710,18 +710,29 @@ public class UserServiceImpl implements UserService {
     }
     @Override
     public Optional<User> findByUsername(String username) {
-        User user = userRepository.findByUsername(username).orElse(null);
-        if(userRepository.existsByUsername(username)){
-            if(userRepository.findByUsername(username).get().isEnabled()){
-                return userRepository.findByUsername(username);
-
-            }
-            if(user.getRoles().contains(Role.ADMIN) || user.getRoles().contains(Role.OWNER)){
-                throw new NotFoundException("User not found");
-            }
+        Optional<User> userOptional = userRepository.findByUsername(username);
+        
+        // Nếu không tìm thấy người dùng, ném ngoại lệ
+        if (userOptional.isEmpty()) {
             throw new NotFoundException("User not found");
         }
-        throw new NotFoundException("User not found");
+        
+        User user = userOptional.get();
+    
+        // Nếu người dùng không được kích hoạt, ném ngoại lệ (tùy thuộc vào logic của bạn)
+        // Hoặc bạn có thể thêm logic kiểm tra role ở đây
+        if (!user.isEnabled()) {
+            throw new NotFoundException("User not found");
+        }
+        
+        // Nếu người dùng là ADMIN hoặc OWNER, ném ngoại lệ
+        // Đây là nơi bạn muốn ngăn việc tìm thấy người dùng có role này
+        if (user.getRoles().contains(Role.ADMIN) || user.getRoles().contains(Role.OWNER)) {
+            throw new NotFoundException("User not found");
+        }
+        
+        // Nếu tất cả các điều kiện trên không đúng, trả về đối tượng Optional<User>
+        return userOptional;
     }
 
 }
