@@ -39,7 +39,7 @@ public class GroupServiceImpl implements GroupService {
     }
 
     @Override
-    @Transactional
+    @Transactional(transactionManager = "transactionManager")
     public GroupResponse createGroup(CreateGroupRequest request, Long userId) {
         User creator = userRepository.findById(userId)
                 .orElseThrow(() -> new NotFoundException("User not found with id: " + userId));
@@ -63,7 +63,7 @@ public class GroupServiceImpl implements GroupService {
     }
 
     @Override
-    @Transactional
+    @Transactional(transactionManager = "transactionManager")
     public GroupResponse updateGroup(Long groupId, UpdateGroupRequest request, Long userId) {
         Group existingGroup = groupRepository.findById(groupId)
                 .orElseThrow(() -> new NotFoundException("Group not found with id: " + groupId));
@@ -91,7 +91,7 @@ public class GroupServiceImpl implements GroupService {
     }
 
     @Override
-    @Transactional
+    @Transactional(transactionManager = "transactionManager")
     public void deleteGroup(Long groupId, Long userId) {
         Group existingGroup = groupRepository.findById(groupId)
                 .orElseThrow(() -> new NotFoundException("Group not found with id: " + groupId));

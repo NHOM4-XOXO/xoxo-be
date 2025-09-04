@@ -90,14 +90,11 @@ public class PostServiceImpl implements PostService {
     }
 
     @Override
+    @Transactional(readOnly = true, transactionManager = "transactionManager")
     public List<Media> getPostMedia(Long postId) {
-        List<MediaRoom> mediaRooms = mediaRoomRepository.findByTargetIdAndTargetType(
-                postId, MediaRoomTargetType.POST);
-        mediaRooms.forEach(mediaRoom -> mediaRoom.getMedia().setMediaUrl(cloudinaryService.buildCloudinaryUrl(mediaRoom.getMedia().getMediaUrl())));
-
-        return mediaRooms.stream()
-                .map(MediaRoom::getMedia)
-                .collect(Collectors.toList());
+        List<Media> mediaList = postRepository.findMediaByPostId(postId);
+        mediaList.forEach(m -> m.setMediaUrl(cloudinaryService.buildCloudinaryUrl(m.getMediaUrl())));
+        return mediaList;
     }
 
     @Override

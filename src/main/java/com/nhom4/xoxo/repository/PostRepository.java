@@ -11,6 +11,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import com.nhom4.xoxo.dto.res.PostItemResponse;
+import com.nhom4.xoxo.entity.Media;
 import com.nhom4.xoxo.entity.Post;
 import com.nhom4.xoxo.entity.User;
 import com.nhom4.xoxo.enums.PostStatus;
@@ -146,4 +147,8 @@ public interface PostRepository extends JpaRepository<Post, Long> {
     // Đếm posts public theo author
     @Query("SELECT COUNT(p) FROM Post p WHERE p.author = :author AND p.isPublic = true")
     Long countPublicPostsByAuthor(@Param("author") User author);
+
+    // Lấy danh sách Media của bài viết qua bảng media_room
+    @Query("SELECT m FROM MediaRoom mr JOIN mr.media m WHERE mr.targetId = :postId AND mr.targetType = com.nhom4.xoxo.enums.MediaRoomTargetType.POST")
+    List<Media> findMediaByPostId(@Param("postId") Long postId);
 }

@@ -28,4 +28,8 @@ public interface MediaRoomRepository extends JpaRepository<MediaRoom, Long> {
     
     // Tìm theo Media entity
     List<MediaRoom> findByMedia(Media media);
+
+    // Join media_room với media để lấy danh sách media theo postId
+    @Query("SELECT m FROM MediaRoom mr JOIN mr.media m WHERE mr.targetId = :postId AND mr.targetType = com.nhom4.xoxo.enums.MediaRoomTargetType.POST")
+    List<Media> findMediaByPostId(@Param("postId") Long postId);
 } 

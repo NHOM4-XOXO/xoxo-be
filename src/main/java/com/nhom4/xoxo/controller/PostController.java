@@ -93,13 +93,17 @@ public class PostController {
             }
         }
 
-        PostResponse postResponse = mapToPostResponse(createdPost);
-
-    
-
-        
-        
-        return ResponseEntity.ok(WrapRes.success(postResponse));
+        // Build response with media
+        PostItemResponse postItem = postService.getPostItemById(createdPost.getId()).orElse(null);
+        List<Media> media = postService.getPostMedia(createdPost.getId());
+        List<MediaResponse> mediaResponses = media.stream()
+            .map(this::mapToMediaResponse)
+            .toList();
+        PostWithMediaResponse res = PostWithMediaResponse.builder()
+            .post(postItem)
+            .media(mediaResponses)
+            .build();
+        return ResponseEntity.ok(WrapRes.success(res));
     }
 
     @Operation(summary = "Lấy bài viết theo ID", description = "Lấy thông tin chi tiết bài viết theo ID", responses = {
@@ -108,8 +112,19 @@ public class PostController {
     })
     @GetMapping("/{postId}")
     public ResponseEntity<WrapRes<?>> getPostById(@PathVariable Long postId) {
-      PostItemResponse postResponse = postService.getPostItemById(postId).get();
-        return ResponseEntity.ok(WrapRes.success(postResponse));
+        PostItemResponse post = postService.getPostItemById(postId).orElse(null);
+        if (post == null) {
+            return ResponseEntity.ok(WrapRes.error("Post not found"));
+        }
+        List<Media> media = postService.getPostMedia(postId);
+        List<MediaResponse> mediaResponses = media.stream()
+            .map(this::mapToMediaResponse)
+            .toList();
+        PostWithMediaResponse res = PostWithMediaResponse.builder()
+            .post(post)
+            .media(mediaResponses)
+            .build();
+        return ResponseEntity.ok(WrapRes.success(res));
     }
 
     @Operation(summary = "Lấy tất cả bài viết public", description = "Lấy danh sách tất cả bài viết public", responses = {
@@ -199,7 +214,16 @@ public class PostController {
         for (Long mediaId : mediaIds) {
             postService.addMediaToPost(postId, mediaId);
         }
-        return ResponseEntity.ok(WrapRes.success("Media added to post successfully"));
+        PostItemResponse post = postService.getPostItemById(postId).orElse(null);
+        List<Media> media = postService.getPostMedia(postId);
+        List<MediaResponse> mediaResponses = media.stream()
+            .map(this::mapToMediaResponse)
+            .toList();
+        PostWithMediaResponse res = PostWithMediaResponse.builder()
+            .post(post)
+            .media(mediaResponses)
+            .build();
+        return ResponseEntity.ok(WrapRes.success(res));
     }
 
     @Operation(summary = "Xóa media khỏi bài viết", description = "Xóa media khỏi bài viết", responses = {
