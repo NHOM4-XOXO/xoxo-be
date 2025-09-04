@@ -6,6 +6,7 @@ import java.util.stream.Collectors;
 
 import org.modelmapper.ModelMapper;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -30,7 +31,7 @@ import lombok.RequiredArgsConstructor;
 @RestController
 @RequestMapping("/api/friendships")
 @RequiredArgsConstructor
-public class FriendshipController  {
+public class FriendshipController {
 
     private final FriendshipService friendshipService;
     private final UserService userService;
@@ -43,7 +44,7 @@ public class FriendshipController  {
             Principal principal) {
         String email = principal.getName();
         User user = userService.findByEmail(email);
-        
+
         Friendship friendship = friendshipService.createFriendship(user.getId(), request.getFriendId());
         FriendshipResponse response = FriendshipResponse.fromFriendship(friendship, modelMapper);
         return ResponseEntity.ok(WrapRes.success(response));
@@ -55,12 +56,12 @@ public class FriendshipController  {
             Principal principal) {
         String email = principal.getName();
         User user = userService.findByEmail(email);
-        
+
         Friendship friendship = friendshipService.acceptFriendship(friendshipId, user.getId());
         // Update graph when friendship accepted
         socialGraphService.connectFriends(
-            friendship.getUser().getId(), friendship.getUser().getUsername(),
-            friendship.getFriend().getId(), friendship.getFriend().getUsername());
+                friendship.getUser().getId(), friendship.getUser().getUsername(),
+                friendship.getFriend().getId(), friendship.getFriend().getUsername());
         FriendshipResponse response = FriendshipResponse.fromFriendship(friendship, modelMapper);
         return ResponseEntity.ok(WrapRes.success(response));
     }
@@ -71,7 +72,7 @@ public class FriendshipController  {
             Principal principal) {
         String email = principal.getName();
         User user = userService.findByEmail(email);
-        
+
         Friendship friendship = friendshipService.rejectFriendship(friendshipId, user.getId());
         FriendshipResponse response = FriendshipResponse.fromFriendship(friendship, modelMapper);
         return ResponseEntity.ok(WrapRes.success(response));
@@ -81,17 +82,19 @@ public class FriendshipController  {
     public ResponseEntity<WrapRes<List<UserResponse>>> getFriends(Principal principal) {
         String email = principal.getName();
         User user = userService.findByEmail(email);
-        
+
         List<User> friends = friendshipService.getFriendsByUserId(user.getId());
         List<UserResponse> friendResponses = friends.stream()
                 .map(friend -> modelMapper.map(friend, UserResponse.class))
                 .collect(Collectors.toList());
-        
+
         return ResponseEntity.ok(WrapRes.success(friendResponses));
     }
 
     @GetMapping("/suggestions")
     public ResponseEntity<WrapRes<List<SuggestedFriendResponse>>> suggestFriends(Principal principal) {
+        if (principal == null)
+            return ResponseEntity.status(401).build();
         String email = principal.getName();
         User current = userService.findByEmail(email);
 
@@ -99,9 +102,9 @@ public class FriendshipController  {
 
         var mapped = suggestions.stream()
                 .map(item -> SuggestedFriendResponse.builder()
-                        .id(item.getId())
-                        .username(item.getUsername())
-                        .mutualFriendsCount(item.getMutualFriendsCount())
+                        .id(item.id())
+                        .username(item.username())
+                        .mutualFriendsCount(item.mutualFriendsCount())
                         .build())
                 .collect(Collectors.toList());
 
@@ -112,7 +115,7 @@ public class FriendshipController  {
     public ResponseEntity<WrapRes<List<FriendshipResponse>>> getPendingFriendshipsEntity(Principal principal) {
         String email = principal.getName();
         User user = userService.findByEmail(email);
-        
+
         List<Friendship> pendingFriendships = friendshipService.getPendingFriendships(user.getId());
         List<FriendshipResponse> response = pendingFriendships.stream()
                 .map(friendship -> FriendshipResponse.fromFriendship(friendship, modelMapper))
@@ -125,12 +128,12 @@ public class FriendshipController  {
     public ResponseEntity<WrapRes<List<FriendshipResponse>>> getSentFriendshipsEntity(Principal principal) {
         String email = principal.getName();
         User user = userService.findByEmail(email);
-        
+
         List<Friendship> sentFriendships = friendshipService.getSentFriendships(user.getId());
         List<FriendshipResponse> response = sentFriendships.stream()
                 .map(friendship -> FriendshipResponse.fromFriendship(friendship, modelMapper))
                 .collect(Collectors.toList());
 
         return ResponseEntity.ok(WrapRes.success(response));
-    }   
+    }
 }
