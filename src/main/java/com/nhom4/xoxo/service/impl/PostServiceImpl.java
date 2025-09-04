@@ -85,6 +85,11 @@ public class PostServiceImpl implements PostService {
     }
 
     @Override
+    public List<PostItemResponse> getAllPosts() {
+        return postRepository.findAll2();
+    }
+
+    @Override
     public List<PostItemResponse> getPostsByAuthor(User author) {
         return postRepository.findPostItemByAuthor(author);
     }

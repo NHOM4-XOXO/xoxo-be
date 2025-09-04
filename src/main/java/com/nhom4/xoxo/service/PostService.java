@@ -27,6 +27,9 @@ public interface PostService {
     
     // Lấy tất cả posts public
     List<PostItemResponse> getPublicPosts();
+
+    // Lấy tất cả posts
+    List<PostItemResponse> getAllPosts();
     
     // Lấy posts theo author
     List<PostItemResponse> getPostsByAuthor(User author);

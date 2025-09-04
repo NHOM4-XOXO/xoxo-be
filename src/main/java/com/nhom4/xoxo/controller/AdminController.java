@@ -19,10 +19,12 @@ import org.springframework.web.bind.annotation.RestController;
 import com.nhom4.xoxo.constant.WrapResStatus;
 import com.nhom4.xoxo.dto.WrapRes;
 import com.nhom4.xoxo.dto.req.ToggleUserStatusRequest;
+import com.nhom4.xoxo.dto.res.PostItemResponse;
 import com.nhom4.xoxo.dto.res.UserResponse;
 import com.nhom4.xoxo.dto.res.UserResponseProjection;
 import com.nhom4.xoxo.entity.Role;
 import com.nhom4.xoxo.entity.User;
+import com.nhom4.xoxo.service.PostService;
 import com.nhom4.xoxo.service.UserService;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -34,6 +36,8 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 public class AdminController {
     @Autowired
     private UserService userService;
+    @Autowired
+    private PostService postService;
     @Autowired
     private ModelMapper modelMapper;
 
@@ -152,4 +156,41 @@ public class AdminController {
         UserResponse userResponse = modelMapper.map(targetUser, UserResponse.class);
         return ResponseEntity.ok(WrapRes.success(userResponse));
     }
+
+    @Operation(summary = "Lấy danh sách tất cả bài viết", description = "Chỉ ADMIN hoặc OWNER mới có quyền truy cập.")
+    @ApiResponse(responseCode = "200", description = "Danh sách bài viết")
+    @GetMapping("/posts")
+    public ResponseEntity<WrapRes<List<PostItemResponse>>> getAllPosts() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        String currentUserEmail = authentication.getName();
+        User currentUser = userService.findByEmail(currentUserEmail);
+
+        if (!userService.isAdminOrOwner(currentUser)) {
+            return ResponseEntity.status(403)
+                    .body(WrapRes.error(WrapResStatus.SECURITY_ERROR, "Access denied. Admin or Owner role required."));
+        }
+        List<PostItemResponse> posts = postService.getAllPosts();
+        List<PostItemResponse> responses = posts.stream()
+                .map(post -> modelMapper.map(post, PostItemResponse.class))
+                .toList();
+        return ResponseEntity.ok(WrapRes.success(responses));
+    }
+
+    @Operation(summary = "Xóa bài viết theo id", description = "Chỉ ADMIN hoặc OWNER mới có quyền xóa bài viết.")
+    @ApiResponse(responseCode = "200", description = "Xóa bài viết thành công")
+    @DeleteMapping("/posts/{postId}")
+    public ResponseEntity<WrapRes<?>> deletePost(
+            @Parameter(description = "ID của post cần xóa") @PathVariable Long postId) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        String currentUserEmail = authentication.getName();
+        User currentUser = userService.findByEmail(currentUserEmail);
+
+        if (!userService.isAdminOrOwner(currentUser)) {
+            return ResponseEntity.status(403)
+                    .body(WrapRes.error(WrapResStatus.SECURITY_ERROR, "Access denied. Admin or Owner role required."));
+        }
+        postService.deletePost(postId);
+        return ResponseEntity.ok(WrapRes.success(Map.of("message", "Post deleted successfully")));
+    }
+
 }
