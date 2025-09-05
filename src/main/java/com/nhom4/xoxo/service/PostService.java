@@ -26,7 +26,12 @@ public interface PostService {
     Optional<PostItemResponse> getPostItemById(Long postId);
     
     // Lấy tất cả posts public
-    List<PostWithMediaResponse> getPublicPosts();
+    List<PostWithMediaResponse> getPublicPostsWithMedia();
+    
+    List<PostItemResponse> getPublicPosts();
+
+    // Lấy tất cả posts
+    List<PostItemResponse> getAllPosts();
     
     // Lấy posts theo author
     List<PostItemResponse> getPostsByAuthor(User author);

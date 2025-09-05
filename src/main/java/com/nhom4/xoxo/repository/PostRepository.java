@@ -94,7 +94,34 @@ public interface PostRepository extends JpaRepository<Post, Long> {
             order by p.createdAt desc
             """)
     List<PostItemResponse> findByIsPublicTrue();
-
+    
+    @Query("""
+        select new com.nhom4.xoxo.dto.res.PostItemResponse(
+          p.id,
+          p.content,
+          p.status,
+          p.type,
+          p.location,
+          p.hashtags,
+          p.isPublic,
+          p.allowComments,
+          p.allowLikes,
+          p.allowShares,
+          p.likeCount,
+          p.commentCount,
+          p.shareCount,
+          p.viewCount,
+          a.id,
+          a.firstName,
+          a.lastName,
+          a.avatarUrl,
+          p.createdAt,
+          p.updatedAt
+        )
+        from Post p join p.author a
+        order by p.createdAt desc
+        """)
+    List<PostItemResponse> findAll2();
     // Tìm posts theo author và public
     @Query("""
             select new com.nhom4.xoxo.dto.res.PostItemResponse(
