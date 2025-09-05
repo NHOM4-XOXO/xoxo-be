@@ -339,10 +339,45 @@ public class PostServiceImpl implements PostService {
             .map(p -> PostWithMediaResponse.builder()
                 .post(p)
                 .media(getPostMedia(p.id()).stream()
-                    .map(m -> MediaResponse.builder()
-                        .id(m.getId())
-                        .mediaUrl(m.getMediaUrl())
-                        .build())
+                    .map(m -> {
+                        com.nhom4.xoxo.dto.res.UserResponse uploadedBy;
+                        if (m.getUploadedBy() != null) {
+                            var u = m.getUploadedBy();
+                            uploadedBy = com.nhom4.xoxo.dto.res.UserResponse.builder()
+                                .id(u.getId())
+                                .email(u.getEmail())
+                                .firstName(u.getFirstName())
+                                .lastName(u.getLastName())
+                                .roles(u.getRoles())
+                                .dateOfBirth(u.getDateOfBirth())
+                                .gender(u.getGender())
+                                .avatarUrl(u.getAvatarUrl())
+                                .coverUrl(u.getCoverUrl())
+                                .bio(u.getBio())
+                                .createdAt(u.getCreatedAt())
+                                .updatedAt(u.getUpdatedAt())
+                                .enabled(u.isEnabled())
+                                .username(u.getUsername())
+                                .build();
+                        } else {
+                            uploadedBy = com.nhom4.xoxo.dto.res.UserResponse.builder()
+                                .id(p.authorId())
+                                .firstName(p.authorFirstName())
+                                .lastName(p.authorLastName())
+                                .avatarUrl(p.authorAvatarUrl())
+                                .build();
+                        }
+                        return MediaResponse.builder()
+                            .id(m.getId())
+                            .mediaUrl(m.getMediaUrl())
+                            .mediaType(m.getMediaType())
+                            .originalFilename(m.getOriginalFilename())
+                            .fileSize(m.getFileSize())
+                            .uploadedBy(uploadedBy)
+                            .createdAt(m.getCreatedAt() != null ? m.getCreatedAt() : p.createdAt())
+                            .updatedAt(m.getUpdatedAt() != null ? m.getUpdatedAt() : p.updatedAt())
+                            .build();
+                    })
                     .collect(Collectors.toList()))
                 .build())
             .collect(Collectors.toList());
@@ -356,15 +391,50 @@ public class PostServiceImpl implements PostService {
             .map(p -> PostWithMediaResponse.builder()
                 .post(p)
                 .media(getPostMedia(p.id()).stream()
-                    .map(m -> MediaResponse.builder()
-                        .id(m.getId())
-                        .mediaUrl(m.getMediaUrl())
-                        .build())
+                    .map(m -> {
+                        com.nhom4.xoxo.dto.res.UserResponse uploadedBy;
+                        if (m.getUploadedBy() != null) {
+                            var u = m.getUploadedBy();
+                            uploadedBy = com.nhom4.xoxo.dto.res.UserResponse.builder()
+                                .id(u.getId())
+                                .email(u.getEmail())
+                                .firstName(u.getFirstName())
+                                .lastName(u.getLastName())
+                                .roles(u.getRoles())
+                                .dateOfBirth(u.getDateOfBirth())
+                                .gender(u.getGender())
+                                .avatarUrl(u.getAvatarUrl())
+                                .coverUrl(u.getCoverUrl())
+                                .bio(u.getBio())
+                                .createdAt(u.getCreatedAt())
+                                .updatedAt(u.getUpdatedAt())
+                                .enabled(u.isEnabled())
+                                .username(u.getUsername())
+                                .build();
+                        } else {
+                            uploadedBy = com.nhom4.xoxo.dto.res.UserResponse.builder()
+                                .id(p.authorId())
+                                .firstName(p.authorFirstName())
+                                .lastName(p.authorLastName())
+                                .avatarUrl(p.authorAvatarUrl())
+                                .build();
+                        }
+                        return MediaResponse.builder()
+                            .id(m.getId())
+                            .mediaUrl(m.getMediaUrl())
+                            .mediaType(m.getMediaType())
+                            .originalFilename(m.getOriginalFilename())
+                            .fileSize(m.getFileSize())
+                            .uploadedBy(uploadedBy)
+                            .createdAt(m.getCreatedAt() != null ? m.getCreatedAt() : p.createdAt())
+                            .updatedAt(m.getUpdatedAt() != null ? m.getUpdatedAt() : p.updatedAt())
+                            .build();
+                    })
                     .collect(Collectors.toList()))
                 .build())
             .collect(Collectors.toList());
         return postsWithMedia;
-    
+        
     }
 
 }

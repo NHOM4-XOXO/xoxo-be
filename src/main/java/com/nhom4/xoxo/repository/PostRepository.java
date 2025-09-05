@@ -178,7 +178,7 @@ public interface PostRepository extends JpaRepository<Post, Long> {
     @Query("SELECT COUNT(p) FROM Post p WHERE p.author = :author AND p.isPublic = true")
     Long countPublicPostsByAuthor(@Param("author") User author);
 
-    // Lấy danh sách Media của bài viết qua bảng media_room
-    @Query("SELECT m FROM MediaRoom mr JOIN mr.media m WHERE mr.targetId = :postId AND mr.targetType = com.nhom4.xoxo.enums.MediaRoomTargetType.POST")
+    // Lấy danh sách Media của bài viết qua bảng media_room, fetch uploadedBy để tránh lazy issues
+    @Query("SELECT m FROM MediaRoom mr JOIN mr.media m LEFT JOIN FETCH m.uploadedBy WHERE mr.targetId = :postId AND mr.targetType = com.nhom4.xoxo.enums.MediaRoomTargetType.POST")
     List<Media> findMediaByPostId(@Param("postId") Long postId);
 }

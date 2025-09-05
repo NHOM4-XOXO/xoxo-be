@@ -162,7 +162,46 @@ public class PostController {
         List<PostItemResponse> myPostItems = postService.getPostsByAuthor(me);
         List<PostWithMediaResponse> result = myPostItems.stream().map(item -> {
             List<Media> m = postService.getPostMedia(item.id());
-            List<MediaResponse> mr = m.stream().map(this::mapToMediaResponse).toList();
+            List<MediaResponse> mr = m.stream().map(media -> {
+                UserResponse uploadedBy = null;
+                if (media.getUploadedBy() != null) {
+                    var u = media.getUploadedBy();
+                    uploadedBy = UserResponse.builder()
+                        .id(u.getId())
+                        .email(u.getEmail())
+                        .firstName(u.getFirstName())
+                        .lastName(u.getLastName())
+                        .roles(u.getRoles())
+                        .dateOfBirth(u.getDateOfBirth())
+                        .gender(u.getGender())
+                        .avatarUrl(u.getAvatarUrl())
+                        .coverUrl(u.getCoverUrl())
+                        .bio(u.getBio())
+                        .createdAt(u.getCreatedAt())
+                        .updatedAt(u.getUpdatedAt())
+                        .enabled(u.isEnabled())
+                        .username(u.getUsername())
+                        .build();
+                } else {
+                    // Fallback: dùng thông tin tác giả bài viết nếu media không có uploadedBy
+                    uploadedBy = UserResponse.builder()
+                        .id(item.authorId())
+                        .firstName(item.authorFirstName())
+                        .lastName(item.authorLastName())
+                        .avatarUrl(item.authorAvatarUrl())
+                        .build();
+                }
+                return MediaResponse.builder()
+                    .id(media.getId())
+                    .mediaUrl(media.getMediaUrl())
+                    .mediaType(media.getMediaType())
+                    .originalFilename(media.getOriginalFilename())
+                    .fileSize(media.getFileSize())
+                    .uploadedBy(uploadedBy)
+                    .createdAt(media.getCreatedAt() != null ? media.getCreatedAt() : item.createdAt())
+                    .updatedAt(media.getUpdatedAt() != null ? media.getUpdatedAt() : item.updatedAt())
+                    .build();
+            }).toList();
             return PostWithMediaResponse.builder()
                     .post(item)
                     .media(mr)
