@@ -67,6 +67,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/admin/**").hasAnyRole("ADMIN", "OWNER")
                         .requestMatchers("/api/owner/**").hasRole("OWNER")
                         .requestMatchers("/api/user/**").hasAnyRole("USER", "ADMIN", "OWNER")
+                        .requestMatchers("/api/posts/**").hasAnyRole("USER", "ADMIN", "OWNER")
                         .requestMatchers("/login", "/oauth2/**").permitAll()
                         .anyRequest().permitAll())
                 .oauth2Login(oauth2 -> oauth2

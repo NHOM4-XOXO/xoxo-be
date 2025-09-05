@@ -85,7 +85,14 @@ mkdir -p src/main/resources/certificates
 mv localhost+2.pem src/main/resources/certificates/
 mv localhost+2-key.pem src/main/resources/certificates/
 ```
-choco install openssl
+
+
+
+
+
+
+
+
 
 refreshenv
 

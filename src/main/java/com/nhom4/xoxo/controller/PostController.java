@@ -151,6 +151,27 @@ public class PostController {
         return ResponseEntity.ok(WrapRes.success(posts));
     }
 
+    @Operation(summary = "Lấy tất cả bài viết của tôi", description = "Trả về tất cả bài viết do user đang đăng nhập tạo (kèm media)", responses = {
+            @ApiResponse(responseCode = "200", description = "Lấy danh sách bài viết thành công")
+    })
+    @GetMapping("/me")
+    public ResponseEntity<WrapRes<?>> getMyPosts() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        String email = authentication.getName();
+        User me = userService.findByEmail(email);
+        List<PostItemResponse> myPostItems = postService.getPostsByAuthor(me);
+        List<PostWithMediaResponse> result = myPostItems.stream().map(item -> {
+            List<Media> m = postService.getPostMedia(item.id());
+            List<MediaResponse> mr = m.stream().map(this::mapToMediaResponse).toList();
+            return PostWithMediaResponse.builder()
+                    .post(item)
+                    .media(mr)
+                    .build();
+        }).toList();
+
+        return ResponseEntity.ok(WrapRes.success(result));
+    }
+
     @Operation(summary = "Lấy media của bài viết", description = "Lấy danh sách media của một bài viết", responses = {
             @ApiResponse(responseCode = "200", description = "Lấy media thành công")
     })
