@@ -5,12 +5,12 @@ import java.util.Optional;
 
 import com.nhom4.xoxo.dto.res.CommentItemResponse;
 import com.nhom4.xoxo.dto.res.PostItemResponse;
+import com.nhom4.xoxo.dto.res.PostWithMediaResponse;
 import com.nhom4.xoxo.dto.res.SharePostItemResponse;
 import com.nhom4.xoxo.dto.res.UserLikeResponse;
 import com.nhom4.xoxo.entity.Comment;
 import com.nhom4.xoxo.entity.Media;
 import com.nhom4.xoxo.entity.Post;
-import com.nhom4.xoxo.entity.PostLike;
 import com.nhom4.xoxo.entity.SharePost;
 import com.nhom4.xoxo.entity.User;
 
@@ -26,7 +26,7 @@ public interface PostService {
     Optional<PostItemResponse> getPostItemById(Long postId);
     
     // Lấy tất cả posts public
-    List<PostItemResponse> getPublicPosts();
+    List<PostWithMediaResponse> getPublicPosts();
     
     // Lấy posts theo author
     List<PostItemResponse> getPostsByAuthor(User author);

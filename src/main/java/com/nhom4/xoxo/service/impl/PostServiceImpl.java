@@ -8,7 +8,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.nhom4.xoxo.dto.res.CommentItemResponse;
+import com.nhom4.xoxo.dto.res.MediaResponse;
 import com.nhom4.xoxo.dto.res.PostItemResponse;
+import com.nhom4.xoxo.dto.res.PostWithMediaResponse;
 import com.nhom4.xoxo.dto.res.SharePostItemResponse;
 import com.nhom4.xoxo.dto.res.UserLikeResponse;
 import com.nhom4.xoxo.entity.Comment;
@@ -80,8 +82,21 @@ public class PostServiceImpl implements PostService {
     }
 
     @Override
-    public List<PostItemResponse> getPublicPosts() {
-        return postRepository.findByIsPublicTrue();
+    public List<PostWithMediaResponse> getPublicPosts() {
+        List<PostItemResponse> posts = postRepository.findByIsPublicTrue();
+        List<PostWithMediaResponse> postsWithMedia = posts.stream()
+            .map(p -> PostWithMediaResponse.builder()
+                .post(p)
+                .media(getPostMedia(p.id()).stream()
+                    .map(m -> MediaResponse.builder()
+                        .id(m.getId())
+                        .mediaUrl(m.getMediaUrl())
+                        .build())
+                    .collect(Collectors.toList()))
+                .build())
+            .collect(Collectors.toList());
+        return postsWithMedia;
+    
     }
 
     @Override
