@@ -132,7 +132,7 @@ public class PostController {
     })
     @GetMapping("/public")
     public ResponseEntity<WrapRes<?>> getPublicPosts() {
-        List<PostWithMediaResponse> posts = postService.getPublicPosts();
+        List<PostWithMediaResponse> posts = postService.getPublicPostsWithMedia();
        
         return ResponseEntity.ok(WrapRes.success(posts));
     }

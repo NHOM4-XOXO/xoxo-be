@@ -81,23 +81,7 @@ public class PostServiceImpl implements PostService {
         return postRepository.findPostItemById(postId);
     }
 
-    @Override
-    public List<PostWithMediaResponse> getPublicPosts() {
-        List<PostItemResponse> posts = postRepository.findByIsPublicTrue();
-        List<PostWithMediaResponse> postsWithMedia = posts.stream()
-            .map(p -> PostWithMediaResponse.builder()
-                .post(p)
-                .media(getPostMedia(p.id()).stream()
-                    .map(m -> MediaResponse.builder()
-                        .id(m.getId())
-                        .mediaUrl(m.getMediaUrl())
-                        .build())
-                    .collect(Collectors.toList()))
-                .build())
-            .collect(Collectors.toList());
-        return postsWithMedia;
-    
-    }
+
 
     @Override
     public List<PostItemResponse> getAllPosts() {
@@ -339,6 +323,41 @@ public class PostServiceImpl implements PostService {
                         c.getAuthor().getId(), c.getAuthor().getFirstName(), c.getAuthor().getLastName(), c.getAuthor().getAvatarUrl(),
                         null, post.getId(), c.getCreatedAt()))
                 .collect(Collectors.toList());
+    }
+
+    @Override
+    public List<PostWithMediaResponse> getPublicPostsWithMedia() {
+        List<PostItemResponse> posts = postRepository.findByIsPublicTrue();
+        List<PostWithMediaResponse> postsWithMedia = posts.stream()
+            .map(p -> PostWithMediaResponse.builder()
+                .post(p)
+                .media(getPostMedia(p.id()).stream()
+                    .map(m -> MediaResponse.builder()
+                        .id(m.getId())
+                        .mediaUrl(m.getMediaUrl())
+                        .build())
+                    .collect(Collectors.toList()))
+                .build())
+            .collect(Collectors.toList());
+        return postsWithMedia;
+    }
+
+    @Override
+    public List<PostWithMediaResponse> getPublicPosts() {
+        List<PostItemResponse> posts = postRepository.findByIsPublicTrue();
+        List<PostWithMediaResponse> postsWithMedia = posts.stream()
+            .map(p -> PostWithMediaResponse.builder()
+                .post(p)
+                .media(getPostMedia(p.id()).stream()
+                    .map(m -> MediaResponse.builder()
+                        .id(m.getId())
+                        .mediaUrl(m.getMediaUrl())
+                        .build())
+                    .collect(Collectors.toList()))
+                .build())
+            .collect(Collectors.toList());
+        return postsWithMedia;
+    
     }
 
 }

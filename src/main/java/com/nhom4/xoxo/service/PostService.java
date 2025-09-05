@@ -27,8 +27,8 @@ public interface PostService {
     
     // Lấy tất cả posts public
     List<PostWithMediaResponse> getPublicPostsWithMedia();
-    
-    List<PostItemResponse> getPublicPosts();
+
+    List<PostWithMediaResponse> getPublicPosts();
 
     // Lấy tất cả posts
     List<PostItemResponse> getAllPosts();
