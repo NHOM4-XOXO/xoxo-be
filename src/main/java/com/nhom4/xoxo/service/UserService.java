@@ -39,7 +39,7 @@ public interface UserService {
     LoginResponse login(LoginRequest request, HttpServletResponse response);
     String refreshToken(String refreshToken);
     String verifyAccount(String token);
-    boolean logout(String refreshToken);
+    boolean logout(String refreshToken, HttpServletResponse response);
     boolean changePassword(String oldPassword, String newPassword, UserDetails currentUser);
     // Kiểm tra quyền
     boolean isAdminOrOwner(User user);

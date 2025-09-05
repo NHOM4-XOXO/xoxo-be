@@ -23,6 +23,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.nhom4.xoxo.config.CookieConfig;
 import com.nhom4.xoxo.dto.req.ForgotPasswordRequest;
 import com.nhom4.xoxo.dto.req.LoginRequest;
 import com.nhom4.xoxo.dto.req.MailMessage;
@@ -67,18 +68,18 @@ public class UserServiceImpl implements UserService {
     private final EmailService emailService;
     private final TokenService tokenService;
     private final SocialGraphService socialGraphService;
+    private final CookieConfig cookieConfig;
 
     @Value("${fe.user.base-url}")
     String userBaseUrl;
     @Value("${fe.admin.base-url}")
     String adminBaseUrl;
 
-
-
     public UserServiceImpl(UserRepository userRepository, PasswordEncoder passwordEncoder, MailProducer mailProducer,
             VerificationTokenRepository verificationTokenRepository, RefreshTokenService refreshTokenService,
             AuthenticationManager authenticationManager, JwtTokenProvider jwtTokenProvider,
-            UserDetailsService userDetailsService, ModelMapper modelMapper, EmailService emailService, TokenService tokenService, SocialGraphService socialGraphService) {
+            UserDetailsService userDetailsService, ModelMapper modelMapper, EmailService emailService,
+            TokenService tokenService, SocialGraphService socialGraphService, CookieConfig cookieConfig) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.mailProducer = mailProducer;
@@ -91,13 +92,16 @@ public class UserServiceImpl implements UserService {
         this.emailService = emailService;
         this.tokenService = tokenService;
         this.socialGraphService = socialGraphService;
+        this.cookieConfig = cookieConfig;
     }
+
     public static String toSlug(String input) {
         String normalized = Normalizer.normalize(input, Normalizer.Form.NFD);
         String slug = normalized.replaceAll("\\p{InCombiningDiacriticalMarks}+", "");
-        slug = slug.replaceAll("[^a-zA-Z0-9]", ""); 
+        slug = slug.replaceAll("[^a-zA-Z0-9]", "");
         return slug.toLowerCase();
     }
+
     public String generateUsername(String firstName, String lastName) {
         String username = firstName.toLowerCase() + lastName.toLowerCase();
         if (userRepository.existsByUsername(username)) {
@@ -112,11 +116,9 @@ public class UserServiceImpl implements UserService {
         if (userRepository.existsByEmail(request.getEmail())) {
             throw new ServiceException("Email already exists");
         }
-        
- 
+
         String password = request.getPassword();
-    
-        
+
         User user = new User();
         user.setEmail(request.getEmail());
         user.setPassword(passwordEncoder.encode(password));
@@ -151,19 +153,19 @@ public class UserServiceImpl implements UserService {
         String verifyLink = userBaseUrl + "/verify?token=" + token;
         String htmlContent = String.format(
                 """
-                <html>
-                    <body>
-                        <h2>Xác nhận đăng ký tài khoản</h2>
-                        <p>Cảm ơn bạn đã đăng ký tài khoản tại XOXO Social Media.</p>
-                        <p>Vui lòng xác nhận email bằng cách bấm vào link sau:</p>
-                        <p><a href=\"%s\" style=\"background-color: #4CAF50; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;\">Xác nhận tài khoản</a></p>
-                        <p>Hoặc copy link này: <a href=\"%s\">%s</a></p>
-                        <p><b>Token:</b> <span style=\"color: #d32f2f;\">%s</span></p>
-                        <p>Link có hiệu lực trong 24 giờ.</p>
-                        <p>Trân trọng,<br>Team XOXO</p>
-                    </body>
-                </html>
-                """,
+                        <html>
+                            <body>
+                                <h2>Xác nhận đăng ký tài khoản</h2>
+                                <p>Cảm ơn bạn đã đăng ký tài khoản tại XOXO Social Media.</p>
+                                <p>Vui lòng xác nhận email bằng cách bấm vào link sau:</p>
+                                <p><a href=\"%s\" style=\"background-color: #4CAF50; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;\">Xác nhận tài khoản</a></p>
+                                <p>Hoặc copy link này: <a href=\"%s\">%s</a></p>
+                                <p><b>Token:</b> <span style=\"color: #d32f2f;\">%s</span></p>
+                                <p>Link có hiệu lực trong 24 giờ.</p>
+                                <p>Trân trọng,<br>Team XOXO</p>
+                            </body>
+                        </html>
+                        """,
                 verifyLink, verifyLink, verifyLink, token);
 
         MailMessage mailMessage = new MailMessage(
@@ -175,14 +177,15 @@ public class UserServiceImpl implements UserService {
             log.info("Email xác thực đã được gửi thành công qua Kafka cho user: {}", savedUser.getEmail());
         } catch (Exception e) {
             log.error("Lỗi gửi email qua Kafka cho user {}: {}", savedUser.getEmail(), e.getMessage(), e);
-            
+
             // Fallback: Gửi email trực tiếp qua SMTP
             try {
                 log.info("Thử gửi email trực tiếp qua SMTP cho user: {}", savedUser.getEmail());
                 emailService.sendMail(mailMessage);
                 log.info("Email xác thực đã được gửi thành công qua SMTP cho user: {}", savedUser.getEmail());
             } catch (Exception smtpException) {
-                log.error("Lỗi gửi email qua SMTP cho user {}: {}", savedUser.getEmail(), smtpException.getMessage(), smtpException);
+                log.error("Lỗi gửi email qua SMTP cho user {}: {}", savedUser.getEmail(), smtpException.getMessage(),
+                        smtpException);
                 // Không throw exception để user vẫn được đăng ký thành công
                 // Email có thể được gửi lại sau hoặc admin có thể xử lý thủ công
             }
@@ -216,15 +219,16 @@ public class UserServiceImpl implements UserService {
             }
             return targetUser;
         }
-        if(currentUser.getRoles().contains(Role.USER)){
+        if (currentUser.getRoles().contains(Role.USER)) {
             if (targetUser.getId().equals(currentUser.getId())) {
                 return targetUser;
             }
             throw new ForbiddenException("You do not have permission to view this user");
         }
-        
+
         throw new ForbiddenException("You do not have permission to view this user");
     }
+
     @Override
     public User findById(Long id) {
         return userRepository.findById(id).orElse(null);
@@ -252,7 +256,7 @@ public class UserServiceImpl implements UserService {
 
             return userRepository.save(user);
         }
-        if(currentUser.getRoles().contains(Role.USER)){
+        if (currentUser.getRoles().contains(Role.USER)) {
             if (targetUser.getId().equals(currentUser.getId())) {
                 return userRepository.save(user);
             }
@@ -400,12 +404,12 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    @Transactional( transactionManager = "transactionManager")
+    @Transactional(transactionManager = "transactionManager")
     public void forgotPassword(ForgotPasswordRequest request) {
         // Sử dụng TokenService để tạo token (tự động xóa token cũ)
         VerificationToken verificationToken = tokenService.createForgotPasswordToken(request.getEmail());
         User user = verificationToken.getUser();
-        
+
         Boolean isAdmin = user.getRoles().contains(Role.ADMIN);
         String baseUrl = isAdmin ? adminBaseUrl : userBaseUrl;
 
@@ -430,97 +434,98 @@ public class UserServiceImpl implements UserService {
                 user.getEmail(),
                 "Reset mật khẩu",
                 htmlContent);
-        
+
         // Sử dụng EmailService để gửi mail với rollback
         emailService.sendMailWithRollback(mailMessage, verificationToken);
     }
-    
+
     @Override
-    @Transactional( transactionManager = "transactionManager")
+    @Transactional(transactionManager = "transactionManager")
     public void regenerateForgotPassword(ForgotPasswordRequest request) {
         // Gọi lại method forgotPassword vì logic giống hệt nhau
         forgotPassword(request);
     }
-    
+
     @Override
-    @Transactional( transactionManager = "transactionManager")
+    @Transactional(transactionManager = "transactionManager")
     public void resendVerificationEmail(String email) {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new ServiceException("Email không tồn tại trong hệ thống"));
-        
+
         if (user.isEnabled()) {
             throw new ServiceException("Tài khoản đã được xác thực");
         }
-        
+
         // Xóa token cũ nếu có
         List<VerificationToken> oldTokens = verificationTokenRepository.findByUserAndType(user, "REGISTER");
         verificationTokenRepository.deleteAll(oldTokens);
-        
+
         // Tạo token mới
         String token = UUID.randomUUID().toString();
         VerificationToken verificationToken = new VerificationToken(token, user,
                 LocalDateTime.now().plusHours(24), "REGISTER");
         verificationTokenRepository.save(verificationToken);
-        
+
         // Gửi email xác thực
         String verifyLink = userBaseUrl + "/verify?token=" + token;
         String htmlContent = String.format(
                 """
-                <html>
-                    <body>
-                        <h2>Xác nhận đăng ký tài khoản</h2>
-                        <p>Cảm ơn bạn đã đăng ký tài khoản tại XOXO Social Media.</p>
-                        <p>Vui lòng xác nhận email bằng cách bấm vào link sau:</p>
-                        <p><a href=\"%s\" style=\"background-color: #4CAF50; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;\">Xác nhận tài khoản</a></p>
-                        <p>Hoặc copy link này: <a href=\"%s\">%s</a></p>
-                        <p><b>Token:</b> <span style=\"color: #d32f2f;\">%s</span></p>
-                        <p>Link có hiệu lực trong 24 giờ.</p>
-                        <p>Trân trọng,<br>Team XOXO</p>
-                    </body>
-                </html>
-                """,
+                        <html>
+                            <body>
+                                <h2>Xác nhận đăng ký tài khoản</h2>
+                                <p>Cảm ơn bạn đã đăng ký tài khoản tại XOXO Social Media.</p>
+                                <p>Vui lòng xác nhận email bằng cách bấm vào link sau:</p>
+                                <p><a href=\"%s\" style=\"background-color: #4CAF50; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;\">Xác nhận tài khoản</a></p>
+                                <p>Hoặc copy link này: <a href=\"%s\">%s</a></p>
+                                <p><b>Token:</b> <span style=\"color: #d32f2f;\">%s</span></p>
+                                <p>Link có hiệu lực trong 24 giờ.</p>
+                                <p>Trân trọng,<br>Team XOXO</p>
+                            </body>
+                        </html>
+                        """,
                 verifyLink, verifyLink, verifyLink, token);
 
         MailMessage mailMessage = new MailMessage(
                 user.getEmail(),
                 "Xác nhận đăng ký tài khoản (Gửi lại)",
                 htmlContent);
-        
+
         try {
             mailProducer.sendMail(mailMessage);
             log.info("Email xác thực đã được gửi lại thành công qua Kafka cho user: {}", user.getEmail());
         } catch (Exception e) {
             log.error("Lỗi gửi email qua Kafka cho user {}: {}", user.getEmail(), e.getMessage(), e);
-            
+
             // Fallback: Gửi email trực tiếp qua SMTP
             try {
                 log.info("Thử gửi email trực tiếp qua SMTP cho user: {}", user.getEmail());
                 emailService.sendMail(mailMessage);
                 log.info("Email xác thực đã được gửi lại thành công qua SMTP cho user: {}", user.getEmail());
             } catch (Exception smtpException) {
-                log.error("Lỗi gửi email qua SMTP cho user {}: {}", user.getEmail(), smtpException.getMessage(), smtpException);
+                log.error("Lỗi gửi email qua SMTP cho user {}: {}", user.getEmail(), smtpException.getMessage(),
+                        smtpException);
                 throw new ServiceException("Không thể gửi email xác thực. Vui lòng thử lại sau.");
             }
         }
     }
 
     @Override
-    @Transactional( transactionManager = "transactionManager")
+    @Transactional(transactionManager = "transactionManager")
     public void resetPassword(ResetPasswordRequest request) {
         // Sử dụng TokenService để validate token
         VerificationToken verificationToken = tokenService.validateToken(request.getToken(), "FORGOT_PASSWORD");
-        
+
         // Validate password byte length for BCrypt compatibility
         String newPassword = request.getNewPassword();
         if (newPassword.getBytes().length > 72) {
             throw new ServiceException("Mật khẩu quá dài. Mật khẩu không được vượt quá 72 ký tự.");
         }
-        
+
         User user = verificationToken.getUser();
         user.setPassword(passwordEncoder.encode(newPassword));
         user.setUpdatedAt(LocalDateTime.now());
         userRepository.save(user);
-        
+
         // Xóa token sau khi sử dụng
         tokenService.deleteToken(verificationToken);
     }
@@ -539,42 +544,31 @@ public class UserServiceImpl implements UserService {
         User user = userRepository.findByEmail(request.getEmail())
                 .orElseThrow(() -> new NotFoundException("User not found"));
 
-        // 4. Sinh refreshToken (UUID hoặc JWT riêng)
+        // 4. Sinh refreshToken
         String refreshToken = UUID.randomUUID().toString();
+        refreshTokenService.saveRefreshToken(refreshToken, user.getEmail(), 7, TimeUnit.DAYS);
 
-        // 5. Lưu refreshToken vào Redis (7 ngày)
-        refreshTokenService.saveRefreshToken(refreshToken, user.getEmail().toString(), 7, TimeUnit.DAYS);
-
-        // 6. Set refreshToken vào HttpOnly cookie (cross-site)
-        boolean isProd = !"development".equalsIgnoreCase(System.getenv("NODE_ENV"));
-        ResponseCookie cookie = ResponseCookie.from("refreshToken", refreshToken)
-                .httpOnly(true)
-                .secure(isProd)
-                .path("/")
-                .maxAge(Duration.ofDays(7))
-                .sameSite("None")
-                .domain(isProd ? ".xoxo.id.vn" : null)
-                .build();
+        // 5. Set cookie với cấu hình tối ưu
+        ResponseCookie cookie = cookieConfig.createRefreshTokenCookie(refreshToken);
         response.addHeader("Set-Cookie", cookie.toString());
 
-        // 7. Trả về LoginResponse (accessToken, email, roles)
+        // 6. Trả về response
         return new LoginResponse(accessToken, user.getEmail(), user.getRoles().toString());
     }
 
-
     @Override
-    @Transactional( transactionManager = "transactionManager")
+    @Transactional(transactionManager = "transactionManager")
     public String verifyAccount(String token) {
         // Sử dụng TokenService để validate token
         VerificationToken verificationToken = tokenService.validateToken(token, "REGISTER");
-        
+
         User user = verificationToken.getUser();
         user.setEnabled(true);
         userRepository.save(user);
-        
+
         // Xóa token sau khi sử dụng
         tokenService.deleteToken(verificationToken);
-        
+
         return "Xác thực tài khoản thành công. Bạn có thể đăng nhập!";
     }
 
@@ -590,8 +584,11 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    public boolean logout(String refreshToken) {
+    public boolean logout(String refreshToken, HttpServletResponse response) {
         refreshTokenService.deleteRefreshToken(refreshToken);
+        // Clear cookie
+        ResponseCookie cookie = cookieConfig.createClearRefreshTokenCookie();
+        response.addHeader("Set-Cookie", cookie.toString());
         return true;
     }
 
@@ -694,43 +691,46 @@ public class UserServiceImpl implements UserService {
         }
         return false;
     }
+
     @Override
     public boolean updateAvatar(User currentUser, String avatar) {
-       
+
         currentUser.setAvatarUrl(avatar);
         userRepository.save(currentUser);
         return true;
     }
-    
+
     @Override
     public boolean updateCover(User currentUser, String cover) {
         currentUser.setCoverUrl(cover);
         userRepository.save(currentUser);
         return true;
     }
+
     @Override
     public Optional<User> findByUsername(String username) {
         Optional<User> userOptional = userRepository.findByUsername(username);
-        
+
         // Nếu không tìm thấy người dùng, ném ngoại lệ
         if (userOptional.isEmpty()) {
             throw new NotFoundException("User not found");
         }
-        
+
         User user = userOptional.get();
-    
-        // Nếu người dùng không được kích hoạt, ném ngoại lệ (tùy thuộc vào logic của bạn)
+
+        // Nếu người dùng không được kích hoạt, ném ngoại lệ (tùy thuộc vào logic của
+        // bạn)
         // Hoặc bạn có thể thêm logic kiểm tra role ở đây
         if (!user.isEnabled()) {
             throw new NotFoundException("User not found");
         }
-        
+
         // Nếu người dùng là ADMIN hoặc OWNER, ném ngoại lệ
         // Đây là nơi bạn muốn ngăn việc tìm thấy người dùng có role này
         if (user.getRoles().contains(Role.ADMIN) || user.getRoles().contains(Role.OWNER)) {
             throw new NotFoundException("User not found");
         }
-        
+
         // Nếu tất cả các điều kiện trên không đúng, trả về đối tượng Optional<User>
         return userOptional;
     }

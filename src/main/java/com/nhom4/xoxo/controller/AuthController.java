@@ -126,8 +126,8 @@ public class AuthController {
         }
     )
     @PostMapping("/logout")
-    public ResponseEntity<WrapRes<?>> logout(@CookieValue("refreshToken") String refreshToken) {
-        userService.logout(refreshToken);
+    public ResponseEntity<WrapRes<?>> logout(@CookieValue("refreshToken") String refreshToken, HttpServletResponse response) {
+        userService.logout(refreshToken, response);
         return ResponseEntity.ok(WrapRes.success("Logout thành công"));
     }
 

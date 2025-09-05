@@ -20,6 +20,7 @@ import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.security.web.authentication.SimpleUrlAuthenticationSuccessHandler;
 import org.springframework.stereotype.Component;
 
+import com.nhom4.xoxo.config.CookieConfig;
 import com.nhom4.xoxo.entity.AuthProvider;
 import com.nhom4.xoxo.entity.Role;
 import com.nhom4.xoxo.entity.User;
@@ -45,6 +46,8 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
     
     @Autowired
     private PasswordEncoder passwordEncoder;
+    @Autowired
+    private CookieConfig cookieConfig;
 
     @Value("${fe.user.base-url:http://localhost:3000}")
     private String frontendBaseUrl;
@@ -177,15 +180,8 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
             refreshTokenService.saveRefreshToken(refreshToken, user.getEmail(), 7, TimeUnit.DAYS);
             
             // Set refreshToken vào HttpOnly cookie
-            ResponseCookie cookie = ResponseCookie.from("refreshToken", refreshToken)
-                    .httpOnly(true)
-                    .secure(false) // true nếu dùng HTTPS
-                    .path("/")
-                    .maxAge(Duration.ofDays(7))
-                    .sameSite("Strict")
-                    .build();
+            ResponseCookie cookie = cookieConfig.createRefreshTokenCookie(refreshToken);
             response.addHeader("Set-Cookie", cookie.toString());
-
             // Redirect về frontend với token
             String redirectUrl = frontendBaseUrl + "/oauth2/success?token=" + jwt;
             log.info("[OAuth2SuccessHandler] Redirecting to: {}", redirectUrl);
