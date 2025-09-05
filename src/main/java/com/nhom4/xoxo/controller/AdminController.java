@@ -12,18 +12,24 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.nhom4.xoxo.constant.WrapResStatus;
 import com.nhom4.xoxo.dto.WrapRes;
+import com.nhom4.xoxo.dto.req.TogglePostStatusRequest;
 import com.nhom4.xoxo.dto.req.ToggleUserStatusRequest;
 import com.nhom4.xoxo.dto.res.PostItemResponse;
+import com.nhom4.xoxo.dto.res.PostResponse;
 import com.nhom4.xoxo.dto.res.UserResponse;
 import com.nhom4.xoxo.dto.res.UserResponseProjection;
+import com.nhom4.xoxo.entity.Post;
 import com.nhom4.xoxo.entity.Role;
 import com.nhom4.xoxo.entity.User;
+import com.nhom4.xoxo.enums.PostStatus;
+import com.nhom4.xoxo.repository.PostRepository;
 import com.nhom4.xoxo.service.PostService;
 import com.nhom4.xoxo.service.UserService;
 
@@ -38,6 +44,8 @@ public class AdminController {
     private UserService userService;
     @Autowired
     private PostService postService;
+    @Autowired
+    private PostRepository postRepository;
     @Autowired
     private ModelMapper modelMapper;
 
@@ -193,4 +201,30 @@ public class AdminController {
         return ResponseEntity.ok(WrapRes.success(Map.of("message", "Post deleted successfully")));
     }
 
+    @Operation(summary = "Cập nhật trạng thái bài viết", description = "Chỉ ADMIN hoặc OWNER mới có quyền cập nhật trạng thái bài viết.")
+    @ApiResponse(responseCode = "200", description = "Cập nhật trạng thái bài viết thành công")
+    @PostMapping("/posts/{postId}/status")
+    public ResponseEntity<WrapRes<?>> togglePostStatus(
+            @Parameter(description = "ID của post cần cập nhật trạng thái") @PathVariable Long postId,
+            @io.swagger.v3.oas.annotations.parameters.RequestBody(description = "Trạng thái mới") @RequestBody TogglePostStatusRequest statusRequest) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        String currentUserEmail = authentication.getName();
+        User currentUser = userService.findByEmail(currentUserEmail);
+
+        if (!userService.isAdminOrOwner(currentUser)) {
+            return ResponseEntity.status(403)
+                    .body(WrapRes.error(WrapResStatus.SECURITY_ERROR, "Access denied. Admin or Owner role required."));
+        }
+        PostStatus status = statusRequest.getStatus();
+        if (status == null) {
+            return ResponseEntity.badRequest()
+                    .body(WrapRes.error(WrapResStatus.BAD_REQUEST, "status field is required"));
+        }
+        postService.updatePostStatus(postId, status);
+        Post updatedPost = postRepository.findByIdWithAuthor(postId);
+        PostResponse postResponse = modelMapper.map(updatedPost, PostResponse.class);
+        return ResponseEntity.ok(WrapRes.success(Map.of(
+                "message", "Post status updated successfully",
+                "post", postResponse)));
+    }
 }

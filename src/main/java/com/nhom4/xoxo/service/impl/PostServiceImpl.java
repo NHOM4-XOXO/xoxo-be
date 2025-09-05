@@ -157,6 +157,13 @@ public class PostServiceImpl implements PostService {
     }
 
     @Override
+    public Post updatePostStatus(Long postId, PostStatus status) {
+        Post post = getPostById(postId).orElseThrow(() -> new NotFoundException("Post not found"));
+        post.setStatus(status);
+        return postRepository.save(post);
+    }
+
+    @Override
     public void deletePost(Long postId) {
         Post post = getPostById(postId).get();
         post.setStatus(PostStatus.DELETED);

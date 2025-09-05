@@ -44,7 +44,7 @@ public class GroupMemberServiceImpl implements GroupMemberService {
     }
 
     @Override
-    @Transactional
+    @Transactional(transactionManager = "transactionManager")
     public GroupMemberResponse joinGroup(Long groupId) {
         User currentUser = getCurrentUser();
         Group group = groupRepository.findById(groupId)
