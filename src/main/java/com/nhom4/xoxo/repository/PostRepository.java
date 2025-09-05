@@ -152,6 +152,9 @@ public interface PostRepository extends JpaRepository<Post, Long> {
             """)    
     List<PostItemResponse> findPostItemByAuthor(@Param("author") User author);
 
+    @Query("SELECT p FROM Post p JOIN FETCH p.author WHERE p.id = :id")
+    Post findByIdWithAuthor(@Param("id") Long id);
+    
     // Pagination cho posts public
     Page<Post> findByIsPublicTrueOrderByCreatedAtDesc(Pageable pageable);
 

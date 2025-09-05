@@ -13,6 +13,7 @@ import com.nhom4.xoxo.entity.Media;
 import com.nhom4.xoxo.entity.Post;
 import com.nhom4.xoxo.entity.SharePost;
 import com.nhom4.xoxo.entity.User;
+import com.nhom4.xoxo.enums.PostStatus;
 
 public interface PostService {
     
@@ -53,6 +54,9 @@ public interface PostService {
     
     // Cập nhật post
     Post updatePost(Long postId, Post updatedPost);
+
+    // Cập nhật status
+    Post updatePostStatus(Long postId, PostStatus status);
     
     // Xóa post
     void deletePost(Long postId);
