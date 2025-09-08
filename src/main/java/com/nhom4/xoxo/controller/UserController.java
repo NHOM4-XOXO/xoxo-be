@@ -55,8 +55,8 @@ public class UserController {
         String email = authentication.getName();
         User user = userService.findByEmail(email);
         UserResponse userResponse = modelMapper.map(user, UserResponse.class);
-        userResponse.setAvatarUrl(cloudinaryService.buildCloudinaryUrl(user.getAvatarUrl()));
-        userResponse.setCoverUrl(cloudinaryService.buildCloudinaryUrl(user.getCoverUrl()));
+        userResponse.setAvatarUrl(cloudinaryService.buildCloudinaryUrl(user.getAvatarUrl(), com.nhom4.xoxo.enums.MediaType.IMAGE));
+        userResponse.setCoverUrl(cloudinaryService.buildCloudinaryUrl(user.getCoverUrl(), com.nhom4.xoxo.enums.MediaType.IMAGE));
         return ResponseEntity.ok(WrapRes.success(userResponse));
     }
 
@@ -120,8 +120,8 @@ public class UserController {
         Optional<User> user = userService.findByUsername(username);
         if (user.isPresent()) {
             UserResponse userResponse = modelMapper.map(user.get(), UserResponse.class);
-            userResponse.setAvatarUrl(cloudinaryService.buildCloudinaryUrl(user.get().getAvatarUrl()));
-            userResponse.setCoverUrl(cloudinaryService.buildCloudinaryUrl(user.get().getCoverUrl()));
+            userResponse.setAvatarUrl(cloudinaryService.buildCloudinaryUrl(user.get().getAvatarUrl(), com.nhom4.xoxo.enums.MediaType.IMAGE));
+            userResponse.setCoverUrl(cloudinaryService.buildCloudinaryUrl(user.get().getCoverUrl(), com.nhom4.xoxo.enums.MediaType.IMAGE));
             return ResponseEntity.ok(WrapRes.success(userResponse));
         }
         return ResponseEntity.ok(WrapRes.success(user));
@@ -198,9 +198,7 @@ public class UserController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
         
-        var user = userService.findByEmail(principal.getName());
-        Pageable pageable = PageRequest.of(page, size);
-      
+        // TODO: Implement notification filtering by type
         return ResponseEntity.ok(WrapRes.success("Feature coming soon"));
     }
 

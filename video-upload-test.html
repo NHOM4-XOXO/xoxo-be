@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Video Upload Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .upload-section {
+            border: 2px dashed #ddd;
+            padding: 20px;
+            margin: 20px 0;
+            text-align: center;
+            border-radius: 8px;
+        }
+        .upload-section.dragover {
+            border-color: #007bff;
+            background-color: #f8f9fa;
+        }
+        .file-input {
+            margin: 10px;
+            padding: 10px;
+        }
+        .upload-btn {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .upload-btn:hover {
+            background-color: #0056b3;
+        }
+        .upload-btn:disabled {
+            background-color: #6c757d;
+            cursor: not-allowed;
+        }
+        .result {
+            margin: 20px 0;
+            padding: 15px;
+            border-radius: 4px;
+        }
+        .success {
+            background-color: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+        .error {
+            background-color: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+        .progress {
+            width: 100%;
+            height: 20px;
+            background-color: #f0f0f0;
+            border-radius: 10px;
+            margin: 10px 0;
+        }
+        .progress-bar {
+            height: 100%;
+            background-color: #007bff;
+            border-radius: 10px;
+            transition: width 0.3s ease;
+        }
+        .file-info {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+        }
+        .video-preview {
+            max-width: 100%;
+            max-height: 300px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>🎥 Video Upload Test for Facebook Clone</h1>
+    
+    <div class="upload-section" id="uploadSection">
+        <h3>Upload Video cho Post</h3>
+        <input type="file" id="videoFile" accept="video/*" class="file-input">
+        <br>
+        <button onclick="uploadVideo()" class="upload-btn" id="uploadBtn">Upload Video</button>
+        
+        <div class="progress" id="progressContainer" style="display: none;">
+            <div class="progress-bar" id="progressBar"></div>
+        </div>
+    </div>
+
+    <div class="upload-section">
+        <h3>Upload Image cho Post</h3>
+        <input type="file" id="imageFile" accept="image/*" class="file-input">
+        <br>
+        <button onclick="uploadImage()" class="upload-btn">Upload Image</button>
+    </div>
+
+    <div class="upload-section">
+        <h3>Auto-detect Upload</h3>
+        <input type="file" id="autoFile" accept="image/*,video/*,audio/*" class="file-input">
+        <br>
+        <button onclick="uploadAuto()" class="upload-btn">Upload (Auto-detect)</button>
+    </div>
+
+    <div id="result"></div>
+
+    <script>
+        const API_BASE = 'https://localhost:8443/api/v1/media';
+        
+        // Get auth token (you'll need to implement this based on your auth system)
+        function getAuthToken() {
+            return localStorage.getItem('authToken') || 'your-jwt-token-here';
+        }
+
+        async function uploadVideo() {
+            const fileInput = document.getElementById('videoFile');
+            const file = fileInput.files[0];
+            
+            if (!file) {
+                showResult('Vui lòng chọn file video', 'error');
+                return;
+            }
+
+            // Show file info
+            showFileInfo(file);
+            
+            // Validate file type
+            if (!file.type.startsWith('video/')) {
+                showResult('File phải là video (MP4, AVI, MOV, WEBM)', 'error');
+                return;
+            }
+
+            // Check file size (100MB limit)
+            if (file.size > 100 * 1024 * 1024) {
+                showResult('Video không được vượt quá 100MB', 'error');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                showProgress(true);
+                updateProgress(0);
+                
+                const response = await fetch(`${API_BASE}/upload-video`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${getAuthToken()}`
+                    },
+                    body: formData
+                });
+
+                updateProgress(100);
+                const result = await response.json();
+                
+                if (result.status === 'SUCCESS') {
+                    showResult(`✅ Video uploaded thành công!<br/>
+                        <strong>ID:</strong> ${result.data.id}<br/>
+                        <strong>URL:</strong> <a href="${result.data.mediaUrl}" target="_blank">${result.data.mediaUrl}</a><br/>
+                        <strong>Size:</strong> ${(result.data.fileSize / 1024 / 1024).toFixed(2)} MB<br/>
+                        <video src="${result.data.mediaUrl}" controls class="video-preview"></video>`, 'success');
+                } else {
+                    showResult(`❌ Upload thất bại: ${result.message}`, 'error');
+                }
+            } catch (error) {
+                showResult(`❌ Lỗi kết nối: ${error.message}`, 'error');
+            } finally {
+                showProgress(false);
+            }
+        }
+
+        async function uploadImage() {
+            const fileInput = document.getElementById('imageFile');
+            const file = fileInput.files[0];
+            
+            if (!file) {
+                showResult('Vui lòng chọn file ảnh', 'error');
+                return;
+            }
+
+            showFileInfo(file);
+
+            if (!file.type.startsWith('image/')) {
+                showResult('File phải là ảnh (JPG, PNG, GIF, WEBP)', 'error');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                const response = await fetch(`${API_BASE}/upload-image`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${getAuthToken()}`
+                    },
+                    body: formData
+                });
+
+                const result = await response.json();
+                
+                if (result.status === 'SUCCESS') {
+                    showResult(`✅ Ảnh uploaded thành công!<br/>
+                        <strong>ID:</strong> ${result.data.id}<br/>
+                        <strong>URL:</strong> <a href="${result.data.mediaUrl}" target="_blank">${result.data.mediaUrl}</a><br/>
+                        <img src="${result.data.mediaUrl}" style="max-width: 300px; margin: 10px 0;">`, 'success');
+                } else {
+                    showResult(`❌ Upload thất bại: ${result.message}`, 'error');
+                }
+            } catch (error) {
+                showResult(`❌ Lỗi kết nối: ${error.message}`, 'error');
+            }
+        }
+
+        async function uploadAuto() {
+            const fileInput = document.getElementById('autoFile');
+            const file = fileInput.files[0];
+            
+            if (!file) {
+                showResult('Vui lòng chọn file', 'error');
+                return;
+            }
+
+            showFileInfo(file);
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                const response = await fetch(`${API_BASE}/upload-auto`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${getAuthToken()}`
+                    },
+                    body: formData
+                });
+
+                const result = await response.json();
+                
+                if (result.status === 'SUCCESS') {
+                    const media = result.data;
+                    let preview = '';
+                    
+                    if (media.mediaType === 'VIDEO') {
+                        preview = `<video src="${media.mediaUrl}" controls class="video-preview"></video>`;
+                    } else if (media.mediaType === 'IMAGE') {
+                        preview = `<img src="${media.mediaUrl}" style="max-width: 300px; margin: 10px 0;">`;
+                    } else if (media.mediaType === 'AUDIO') {
+                        preview = `<audio src="${media.mediaUrl}" controls></audio>`;
+                    }
+                    
+                    showResult(`✅ ${media.mediaType} uploaded thành công!<br/>
+                        <strong>ID:</strong> ${media.id}<br/>
+                        <strong>Type:</strong> ${media.mediaType}<br/>
+                        <strong>URL:</strong> <a href="${media.mediaUrl}" target="_blank">${media.mediaUrl}</a><br/>
+                        ${preview}`, 'success');
+                } else {
+                    showResult(`❌ Upload thất bại: ${result.message}`, 'error');
+                }
+            } catch (error) {
+                showResult(`❌ Lỗi kết nối: ${error.message}`, 'error');
+            }
+        }
+
+        function showFileInfo(file) {
+            const info = `
+                <div class="file-info">
+                    <strong>File Info:</strong><br/>
+                    📁 Name: ${file.name}<br/>
+                    📊 Size: ${(file.size / 1024 / 1024).toFixed(2)} MB<br/>
+                    🎯 Type: ${file.type}<br/>
+                    📅 Modified: ${new Date(file.lastModified).toLocaleString()}
+                </div>
+            `;
+            document.getElementById('result').innerHTML = info;
+        }
+
+        function showResult(message, type) {
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = `<div class="result ${type}">${message}</div>`;
+        }
+
+        function showProgress(show) {
+            const container = document.getElementById('progressContainer');
+            container.style.display = show ? 'block' : 'none';
+            
+            const btn = document.getElementById('uploadBtn');
+            btn.disabled = show;
+            btn.textContent = show ? 'Uploading...' : 'Upload Video';
+        }
+
+        function updateProgress(percent) {
+            const bar = document.getElementById('progressBar');
+            bar.style.width = percent + '%';
+        }
+
+        // Drag and drop support
+        const uploadSection = document.getElementById('uploadSection');
+        
+        uploadSection.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadSection.classList.add('dragover');
+        });
+
+        uploadSection.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            uploadSection.classList.remove('dragover');
+        });
+
+        uploadSection.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadSection.classList.remove('dragover');
+            
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                document.getElementById('videoFile').files = files;
+                showFileInfo(files[0]);
+            }
+        });
+
+        // Load supported types on page load
+        window.onload = async function() {
+            try {
+                const response = await fetch(`${API_BASE}/supported-types`);
+                const result = await response.json();
+                
+                if (result.status === 'SUCCESS') {
+                    console.log('Supported file types:', result.data);
+                }
+            } catch (error) {
+                console.error('Error loading supported types:', error);
+            }
+        };
+    </script>
+</body>
+</html>
+
+

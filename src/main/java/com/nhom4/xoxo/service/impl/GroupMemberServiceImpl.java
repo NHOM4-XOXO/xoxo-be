@@ -1,6 +1,10 @@
 package com.nhom4.xoxo.service.impl;
 
 import com.nhom4.xoxo.dto.res.GroupMemberResponse;
+import com.nhom4.xoxo.dto.res.GroupMemberItemResponse;
+import com.nhom4.xoxo.dto.res.GroupMembersResponse;
+import com.nhom4.xoxo.dto.res.GroupMembershipInfo;
+import com.nhom4.xoxo.dto.res.UserResponse;
 import com.nhom4.xoxo.dto.res.GroupResponse;
 import com.nhom4.xoxo.entity.Group;
 import com.nhom4.xoxo.entity.GroupMember;
@@ -79,7 +83,7 @@ public class GroupMemberServiceImpl implements GroupMemberService {
     }
 
     @Override
-    @Transactional
+    @Transactional(transactionManager = "transactionManager")
     public void leaveGroup(Long groupId) {
         User currentUser = getCurrentUser();
         Group group = groupRepository.findById(groupId)
@@ -97,7 +101,7 @@ public class GroupMemberServiceImpl implements GroupMemberService {
     }
 
     @Override
-    @Transactional
+    @Transactional(transactionManager = "transactionManager")
     public GroupMemberResponse updateGroupMemberStatus(Long groupId, Long memberUserId, GroupMemberStatus newStatus) {
         User currentUser = getCurrentUser();
         Group group = groupRepository.findById(groupId)
@@ -135,7 +139,7 @@ public class GroupMemberServiceImpl implements GroupMemberService {
     }
 
     @Override
-    @Transactional
+    @Transactional(transactionManager = "transactionManager")
     public Page<GroupMemberResponse> getGroupMembers(Long groupId, GroupMemberStatus status, Pageable pageable) {
         User currentUser = getCurrentUser();
         Group group = groupRepository.findById(groupId)
@@ -152,13 +156,78 @@ public class GroupMemberServiceImpl implements GroupMemberService {
             throw new ForbiddenException("You do not have permission to view members of this private group.");
         }
 
+        // Sanitize pageable sort to avoid invalid property names like ["string"]
+        Pageable effectivePageable = pageable;
+        if (pageable != null && pageable.getSort().isSorted()) {
+            boolean hasSuspiciousSort = pageable.getSort().stream().anyMatch(o -> {
+                String p = o.getProperty();
+                return p.contains("[") || p.contains("]") || p.contains("\"");
+            });
+            if (hasSuspiciousSort) {
+                effectivePageable = Pageable.ofSize(pageable.getPageSize()).withPage(pageable.getPageNumber());
+            }
+        }
+
         Page<GroupMember> members;
         if (status != null) {
-            members = groupMemberRepository.findByGroupAndStatus(group, status, pageable);
+            members = groupMemberRepository.findByGroupAndStatus(group, status, effectivePageable);
         } else {
-            members = groupMemberRepository.findByGroup(group, pageable);
+            members = groupMemberRepository.findByGroup(group, effectivePageable);
         }
 
         return members.map(member -> MapperUntils.mapObject(member, GroupMemberResponse.class));
+    }
+
+    @Override
+    @Transactional(transactionManager = "transactionManager")
+    public com.nhom4.xoxo.dto.res.GroupMembersResponse getGroupMembersDetail(Long groupId, GroupMemberStatus status, Pageable pageable) {
+        User currentUser = getCurrentUser();
+        Group group = groupRepository.findById(groupId)
+                .orElseThrow(() -> new NotFoundException("Group not found with ID: " + groupId));
+
+        boolean isMember = groupMemberRepository.findByGroupAndUser(group, currentUser)
+                .map(gm -> gm.getStatus() == GroupMemberStatus.ACCEPTED)
+                .orElse(false);
+        boolean isCreator = group.getCreator().getId().equals(currentUser.getId());
+
+        if (group.getPrivacy() == PrivacyLevel.PRIVATE && !isMember && !isCreator) {
+            throw new ForbiddenException("You do not have permission to view members of this private group.");
+        }
+
+        // Sanitize pageable sort to avoid invalid property names like ["string"]
+        Pageable effectivePageable2 = pageable;
+        if (pageable != null && pageable.getSort().isSorted()) {
+            boolean hasSuspiciousSort2 = pageable.getSort().stream().anyMatch(o -> {
+                String p = o.getProperty();
+                return p.contains("[") || p.contains("]") || p.contains("\"");
+            });
+            if (hasSuspiciousSort2) {
+                effectivePageable2 = Pageable.ofSize(pageable.getPageSize()).withPage(pageable.getPageNumber());
+            }
+        }
+
+        Page<GroupMember> memberPage = (status != null)
+                ? groupMemberRepository.findByGroupAndStatus(group, status, effectivePageable2)
+                : groupMemberRepository.findByGroup(group, effectivePageable2);
+
+        Page<GroupMemberItemResponse> mapped = memberPage.map(m -> {
+            UserResponse userRes = MapperUntils.mapObject(m.getUser(), UserResponse.class);
+            GroupMembershipInfo membership = GroupMembershipInfo.builder()
+                    .status(m.getStatus())
+                    .role("MEMBER")
+                    .joinedAt(m.getCreatedAt())
+                    .build();
+            return GroupMemberItemResponse.builder()
+                    .user(userRes)
+                    .membership(membership)
+                    .build();
+        });
+
+        GroupResponse groupRes = MapperUntils.mapObject(group, GroupResponse.class);
+
+        return GroupMembersResponse.builder()
+                .group(groupRes)
+                .members(mapped)
+                .build();
     }
 }

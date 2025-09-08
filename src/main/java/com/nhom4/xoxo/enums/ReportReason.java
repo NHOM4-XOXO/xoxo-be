@@ -1,0 +1,19 @@
+package com.nhom4.xoxo.enums;
+
+public enum ReportReason {
+    SPAM,
+    HARASSMENT,
+    HATE_SPEECH,
+    VIOLENCE,
+    NUDITY,
+    FALSE_INFORMATION,
+    COPYRIGHT_INFRINGEMENT,
+    IMPERSONATION,
+    SCAM_OR_FRAUD,
+    SELF_HARM,
+    TERRORISM,
+    DRUG_SALES,
+    INAPPROPRIATE_CONTENT,
+    OTHER
+}
+

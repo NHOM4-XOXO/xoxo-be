@@ -2,6 +2,8 @@ package com.nhom4.xoxo.service.impl;
 
 import java.util.List;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -31,7 +33,7 @@ public class ReportServiceImpl implements ReportService {
         Report report = MapperUntils.mapObject(reportRequest, Report.class);
         User reporter = userRepository.findById(reportRequest.getReporterId())
                 .orElseThrow(() -> new NotFoundException("Reporter not found"));
-        report.setReproter(reporter);
+        report.setReporter(reporter);
         report = reportRepository.save(report);
 
         return toReportResponse(report);
@@ -50,6 +52,31 @@ public class ReportServiceImpl implements ReportService {
         return reportRepository.findAll().stream()
                 .map(this::toReportResponse)
                 .toList(); // nếu dùng JDK 8 thì thay bằng .collect(Collectors.toList())
+    }
+
+    @Override
+    public ReportResponse updateReport(Long id, ReportRequest reportRequest) {
+        Report report = reportRepository.findById(id)
+                .orElseThrow(() -> new NotFoundException("Report not found"));
+
+        // Only allow updates if report is still PENDING
+        if (report.getStatus() != com.nhom4.xoxo.enums.ReportStatus.PENDING) {
+            throw new ServiceException("Cannot update report that has already been reviewed");
+        }
+
+        // Update allowed fields
+        if (reportRequest.getReportReason() != null) {
+            report.setReportReason(reportRequest.getReportReason());
+        }
+        if (reportRequest.getAdditionalInfo() != null) {
+            report.setAdditionalInfo(reportRequest.getAdditionalInfo());
+        }
+        if (reportRequest.getPriority() != null) {
+            report.setPriority(reportRequest.getPriority());
+        }
+
+        report = reportRepository.save(report);
+        return toReportResponse(report);
     }
 
     @Override
@@ -88,16 +115,153 @@ public class ReportServiceImpl implements ReportService {
                 .toList();
     }
 
+    // Enhanced operations
+    @Override
+    public Page<ReportResponse> getReportsByUser(Long userId, Pageable pageable) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new NotFoundException("User not found"));
+        return reportRepository.findByReporterOrderByCreatedAtDesc(user, pageable)
+                .map(this::toReportResponse);
+    }
+
+    @Override
+    public Page<ReportResponse> getReportsByTarget(com.nhom4.xoxo.enums.ReportTargetType targetType, Long targetId, Pageable pageable) {
+        return reportRepository.findByReportTargetTypeAndReportTargetIdOrderByCreatedAtDesc(targetType, targetId, pageable)
+                .map(this::toReportResponse);
+    }
+
+    @Override
+    public Page<ReportResponse> getReportsByReason(com.nhom4.xoxo.enums.ReportReason reason, Pageable pageable) {
+        return reportRepository.findByReportReasonOrderByCreatedAtDesc(reason, pageable)
+                .map(this::toReportResponse);
+    }
+
+    @Override
+    public Page<ReportResponse> getReportsByPriority(Integer priority, Pageable pageable) {
+        return reportRepository.findByPriorityOrderByCreatedAtDesc(priority, pageable)
+                .map(this::toReportResponse);
+    }
+
+    // Admin operations
+    @Override
+    public ReportResponse reviewReport(Long reportId, com.nhom4.xoxo.enums.ReportStatus status, String adminNotes, Integer priority, Long adminId) {
+        Report report = reportRepository.findById(reportId)
+                .orElseThrow(() -> new NotFoundException("Report not found"));
+
+        User admin = userRepository.findById(adminId)
+                .orElseThrow(() -> new NotFoundException("Admin not found"));
+
+        report.setStatus(status);
+        report.setAdminNotes(adminNotes);
+        report.setReviewedBy(admin);
+        report.setReviewedAt(java.time.LocalDateTime.now());
+        if (priority != null) {
+            report.setPriority(priority);
+        }
+
+        report = reportRepository.save(report);
+        return toReportResponse(report);
+    }
+
+    @Override
+    public com.nhom4.xoxo.dto.res.ReportAnalyticsResponse getReportAnalytics() {
+        long totalReports = reportRepository.count();
+        
+        // Count by status
+        long pendingReports = reportRepository.countByStatus(com.nhom4.xoxo.enums.ReportStatus.PENDING);
+        long resolvedReports = reportRepository.countByStatus(com.nhom4.xoxo.enums.ReportStatus.RESOLVED);
+        long rejectedReports = reportRepository.countByStatus(com.nhom4.xoxo.enums.ReportStatus.REJECTED);
+        
+        // Aggregate by target type
+        java.util.Map<String, Integer> reportsByType = new java.util.HashMap<>();
+        List<Object[]> typeData = reportRepository.countByTargetType();
+        for (Object[] row : typeData) {
+            reportsByType.put(row[0].toString(), ((Number) row[1]).intValue());
+        }
+        
+        // Aggregate by reason
+        java.util.Map<String, Integer> reportsByReason = new java.util.HashMap<>();
+        List<Object[]> reasonData = reportRepository.countByReason();
+        for (Object[] row : reasonData) {
+            reportsByReason.put(row[0].toString(), ((Number) row[1]).intValue());
+        }
+        
+        // Aggregate by status
+        java.util.Map<String, Integer> reportsByStatus = java.util.Map.of(
+            "PENDING", (int) pendingReports,
+            "RESOLVED", (int) resolvedReports,
+            "REJECTED", (int) rejectedReports,
+            "IN_PROGRESS", (int) reportRepository.countByStatus(com.nhom4.xoxo.enums.ReportStatus.IN_PROGRESS),
+            "CLOSED", (int) reportRepository.countByStatus(com.nhom4.xoxo.enums.ReportStatus.CLOSED),
+            "ESCALATED", (int) reportRepository.countByStatus(com.nhom4.xoxo.enums.ReportStatus.ESCALATED)
+        );
+        
+        // Aggregate by priority
+        java.util.Map<String, Integer> reportsByPriority = new java.util.HashMap<>();
+        List<Object[]> priorityData = reportRepository.countByPriority();
+        for (Object[] row : priorityData) {
+            String priorityLabel = getPriorityLabel(((Number) row[0]).intValue());
+            reportsByPriority.put(priorityLabel, ((Number) row[1]).intValue());
+        }
+        
+        // Reports this week
+        java.util.Map<String, Integer> reportsThisWeek = new java.util.HashMap<>();
+        java.time.LocalDateTime sevenDaysAgo = java.time.LocalDateTime.now().minusDays(7);
+        List<Object[]> weekData = reportRepository.countReportsThisWeek(sevenDaysAgo);
+        for (Object[] row : weekData) {
+            reportsThisWeek.put(row[0].toString(), ((Number) row[1]).intValue());
+        }
+        
+        // Average resolution time
+        Double avgResolutionTime = reportRepository.getAverageResolutionTimeInHours();
+        if (avgResolutionTime == null) avgResolutionTime = 0.0;
+        
+        // Count distinct reporters
+        long reportersCount = reportRepository.countDistinctReporters();
+        
+        return com.nhom4.xoxo.dto.res.ReportAnalyticsResponse.builder()
+                .totalReports((int) totalReports)
+                .pendingReports((int) pendingReports)
+                .resolvedReports((int) resolvedReports)
+                .rejectedReports((int) rejectedReports)
+                .reportsByType(reportsByType)
+                .reportsByReason(reportsByReason)
+                .reportsByStatus(reportsByStatus)
+                .reportsByPriority(reportsByPriority)
+                .reportsThisWeek(reportsThisWeek)
+                .averageResolutionTimeHours(avgResolutionTime)
+                .reportersCount((int) reportersCount)
+                .lastUpdated(java.time.LocalDateTime.now())
+                .build();
+    }
+    
+    private String getPriorityLabel(int priority) {
+        switch (priority) {
+            case 1: return "Low";
+            case 2: return "Medium";
+            case 3: return "High";
+            case 4: return "Critical";
+            default: return "Unknown";
+        }
+    }
+
     private ReportResponse toReportResponse(Report r) {
         return ReportResponse.builder()
                 .id(r.getId())
-                .reporterId(r.getReproter().getId())
-                .reporterName(r.getReproter().getUsername())
-                .reporterEmail(r.getReproter().getEmail())
+                .reporterId(r.getReporter().getId())
+                .reporterName(r.getReporter().getUsername())
+                .reporterEmail(r.getReporter().getEmail())
                 .reportTargetType(r.getReportTargetType())
                 .reportTargetId(r.getReportTargetId())
                 .reportReason(r.getReportReason())
+                .additionalInfo(r.getAdditionalInfo())
                 .status(r.getStatus())
+                .reviewedById(r.getReviewedBy() != null ? r.getReviewedBy().getId() : null)
+                .reviewedByName(r.getReviewedBy() != null ? r.getReviewedBy().getUsername() : null)
+                .reviewedAt(r.getReviewedAt())
+                .adminNotes(r.getAdminNotes())
+                .isAnonymous(r.getIsAnonymous())
+                .priority(r.getPriority())
                 .createdAt(r.getCreatedAt())
                 .build();
     }

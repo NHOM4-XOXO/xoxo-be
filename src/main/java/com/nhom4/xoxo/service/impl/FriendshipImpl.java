@@ -145,12 +145,29 @@ public class FriendshipImpl implements FriendshipService {
 
     @Override
     public boolean areFriends(Long userId1, Long userId2) {
-        throw new UnsupportedOperationException("Unimplemented method 'areFriends'");
+        User user1 = userRepository.findById(userId1)
+                .orElseThrow(() -> new ServiceException("User not found"));
+        User user2 = userRepository.findById(userId2)
+                .orElseThrow(() -> new ServiceException("User not found"));
+        
+        // Check if friendship exists in either direction with ACCEPTED status
+        Optional<Friendship> friendship1 = friendshipRepository.findByUserAndFriend(user1, user2);
+        Optional<Friendship> friendship2 = friendshipRepository.findByUserAndFriend(user2, user1);
+        
+        return (friendship1.isPresent() && friendship1.get().getStatus() == FriendshipStatus.ACCEPTED) ||
+               (friendship2.isPresent() && friendship2.get().getStatus() == FriendshipStatus.ACCEPTED);
     }
 
     @Override
     public boolean hasPendingRequest(Long userId1, Long userId2) {
-        throw new UnsupportedOperationException("Unimplemented method 'hasPendingRequest'");
+        User user1 = userRepository.findById(userId1)
+                .orElseThrow(() -> new ServiceException("User not found"));
+        User user2 = userRepository.findById(userId2)
+                .orElseThrow(() -> new ServiceException("User not found"));
+        
+        // Check if there's a pending friendship request from user1 to user2
+        Optional<Friendship> friendship = friendshipRepository.findByUserAndFriend(user1, user2);
+        return friendship.isPresent() && friendship.get().getStatus() == FriendshipStatus.PENDING;
     }
 
     @Override

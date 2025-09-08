@@ -35,7 +35,10 @@ public interface PostService {
     List<PostItemResponse> getAllPosts();
     
     // Lấy posts theo author
-    List<PostItemResponse> getPostsByAuthor(User author);
+    List<PostWithMediaResponse> getPostsByAuthor(User author);
+
+    //lay post cua user hien tai
+    List<PostWithMediaResponse> getPostsByCurrentUser(User currentUser);
     
     // Lấy media của post
     List<Media> getPostMedia(Long postId);
@@ -90,4 +93,9 @@ public interface PostService {
 
     // Danh sách comments top-level của post (DTO)
     List<CommentItemResponse> getCommentsOfPost(Long postId);
+    
+    // Facebook-style reaction methods
+    void updateReactionCounts(Long postId);
+    PostItemResponse getPostWithReactions(Long postId, Long currentUserId);
+    List<PostItemResponse> getPostsWithReactions(Long currentUserId);
 } 

@@ -4,4 +4,7 @@ public enum ReportStatus {
     PENDING,
     IN_PROGRESS,
     RESOLVED,
+    REJECTED,
+    CLOSED,
+    ESCALATED
 }

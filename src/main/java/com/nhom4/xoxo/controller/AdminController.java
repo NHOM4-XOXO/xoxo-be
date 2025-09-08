@@ -19,10 +19,16 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.nhom4.xoxo.constant.WrapResStatus;
 import com.nhom4.xoxo.dto.WrapRes;
+import com.nhom4.xoxo.dto.req.AdminGroupStatusRequest;
+import com.nhom4.xoxo.dto.req.AdminReportReviewRequest;
 import com.nhom4.xoxo.dto.req.TogglePostStatusRequest;
 import com.nhom4.xoxo.dto.req.ToggleUserStatusRequest;
+import com.nhom4.xoxo.dto.res.GroupAnalyticsResponse;
+import com.nhom4.xoxo.dto.res.GroupResponse;
 import com.nhom4.xoxo.dto.res.PostItemResponse;
 import com.nhom4.xoxo.dto.res.PostResponse;
+import com.nhom4.xoxo.dto.res.ReportAnalyticsResponse;
+import com.nhom4.xoxo.dto.res.ReportResponse;
 import com.nhom4.xoxo.dto.res.UserResponse;
 import com.nhom4.xoxo.dto.res.UserResponseProjection;
 import com.nhom4.xoxo.entity.Post;
@@ -30,7 +36,9 @@ import com.nhom4.xoxo.entity.Role;
 import com.nhom4.xoxo.entity.User;
 import com.nhom4.xoxo.enums.PostStatus;
 import com.nhom4.xoxo.repository.PostRepository;
+import com.nhom4.xoxo.service.GroupService;
 import com.nhom4.xoxo.service.PostService;
+import com.nhom4.xoxo.service.ReportService;
 import com.nhom4.xoxo.service.UserService;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -46,6 +54,10 @@ public class AdminController {
     private PostService postService;
     @Autowired
     private PostRepository postRepository;
+    @Autowired
+    private GroupService groupService;
+    @Autowired
+    private ReportService reportService;
     @Autowired
     private ModelMapper modelMapper;
 
@@ -226,5 +238,193 @@ public class AdminController {
         return ResponseEntity.ok(WrapRes.success(Map.of(
                 "message", "Post status updated successfully",
                 "post", postResponse)));
+    }
+
+    // ==================== GROUP MANAGEMENT APIs ====================
+
+    @Operation(summary = "Lấy danh sách tất cả group", description = "Chỉ ADMIN hoặc OWNER mới có quyền truy cập.")
+    @ApiResponse(responseCode = "200", description = "Danh sách group")
+    @GetMapping("/groups")
+    public ResponseEntity<WrapRes<List<GroupResponse>>> getAllGroups() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        String currentUserEmail = authentication.getName();
+        User currentUser = userService.findByEmail(currentUserEmail);
+
+        if (!userService.isAdminOrOwner(currentUser)) {
+            return ResponseEntity.status(403)
+                    .body(WrapRes.error(WrapResStatus.SECURITY_ERROR, "Access denied. Admin or Owner role required."));
+        }
+
+        List<GroupResponse> groups = groupService.getAllGroupsForAdmin();
+        return ResponseEntity.ok(WrapRes.success(groups));
+    }
+
+    @Operation(summary = "Cập nhật trạng thái group", description = "Chỉ ADMIN hoặc OWNER mới có quyền cập nhật trạng thái group.")
+    @ApiResponse(responseCode = "200", description = "Cập nhật trạng thái group thành công")
+    @PatchMapping("/groups/{groupId}/status")
+    public ResponseEntity<WrapRes<?>> updateGroupStatus(
+            @Parameter(description = "ID của group cần cập nhật trạng thái") @PathVariable Long groupId,
+            @io.swagger.v3.oas.annotations.parameters.RequestBody(description = "Trạng thái mới") @RequestBody AdminGroupStatusRequest statusRequest) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        String currentUserEmail = authentication.getName();
+        User currentUser = userService.findByEmail(currentUserEmail);
+
+        if (!userService.isAdminOrOwner(currentUser)) {
+            return ResponseEntity.status(403)
+                    .body(WrapRes.error(WrapResStatus.SECURITY_ERROR, "Access denied. Admin or Owner role required."));
+        }
+
+        GroupResponse updatedGroup = groupService.updateGroupStatus(groupId, statusRequest.getStatus(), statusRequest.getAdminNotes(), currentUser.getId());
+        return ResponseEntity.ok(WrapRes.success(Map.of(
+                "message", "Group status updated successfully",
+                "group", updatedGroup)));
+    }
+
+    @Operation(summary = "Xóa group", description = "Chỉ ADMIN hoặc OWNER mới có quyền xóa group.")
+    @ApiResponse(responseCode = "200", description = "Xóa group thành công")
+    @DeleteMapping("/groups/{groupId}")
+    public ResponseEntity<WrapRes<?>> deleteGroup(
+            @Parameter(description = "ID của group cần xóa") @PathVariable Long groupId) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        String currentUserEmail = authentication.getName();
+        User currentUser = userService.findByEmail(currentUserEmail);
+
+        if (!userService.isAdminOrOwner(currentUser)) {
+            return ResponseEntity.status(403)
+                    .body(WrapRes.error(WrapResStatus.SECURITY_ERROR, "Access denied. Admin or Owner role required."));
+        }
+
+        groupService.adminDeleteGroup(groupId);
+        return ResponseEntity.ok(WrapRes.success(Map.of("message", "Group deleted successfully")));
+    }
+
+    @Operation(summary = "Lấy thống kê group", description = "Chỉ ADMIN hoặc OWNER mới có quyền xem thống kê.")
+    @ApiResponse(responseCode = "200", description = "Thống kê group")
+    @GetMapping("/groups/{groupId}/analytics")
+    public ResponseEntity<WrapRes<GroupAnalyticsResponse>> getGroupAnalytics(
+            @Parameter(description = "ID của group") @PathVariable Long groupId) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        String currentUserEmail = authentication.getName();
+        User currentUser = userService.findByEmail(currentUserEmail);
+
+        if (!userService.isAdminOrOwner(currentUser)) {
+            return ResponseEntity.status(403)
+                    .body(WrapRes.error(WrapResStatus.SECURITY_ERROR, "Access denied. Admin or Owner role required."));
+        }
+
+        GroupAnalyticsResponse analytics = groupService.getGroupAnalytics(groupId);
+        return ResponseEntity.ok(WrapRes.success(analytics));
+    }
+
+    // ==================== REPORT MANAGEMENT APIs ====================
+
+    @Operation(summary = "Lấy danh sách tất cả report", description = "Chỉ ADMIN hoặc OWNER mới có quyền truy cập.")
+    @ApiResponse(responseCode = "200", description = "Danh sách report")
+    @GetMapping("/reports")
+    public ResponseEntity<WrapRes<List<ReportResponse>>> getAllReports() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        String currentUserEmail = authentication.getName();
+        User currentUser = userService.findByEmail(currentUserEmail);
+
+        if (!userService.isAdminOrOwner(currentUser)) {
+            return ResponseEntity.status(403)
+                    .body(WrapRes.error(WrapResStatus.SECURITY_ERROR, "Access denied. Admin or Owner role required."));
+        }
+
+        List<ReportResponse> reports = reportService.getAllReports();
+        return ResponseEntity.ok(WrapRes.success(reports));
+    }
+
+    @Operation(summary = "Xem chi tiết report", description = "Chỉ ADMIN hoặc OWNER mới có quyền xem chi tiết report.")
+    @ApiResponse(responseCode = "200", description = "Chi tiết report")
+    @GetMapping("/reports/{reportId}")
+    public ResponseEntity<WrapRes<ReportResponse>> getReportById(
+            @Parameter(description = "ID của report") @PathVariable Long reportId) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        String currentUserEmail = authentication.getName();
+        User currentUser = userService.findByEmail(currentUserEmail);
+
+        if (!userService.isAdminOrOwner(currentUser)) {
+            return ResponseEntity.status(403)
+                    .body(WrapRes.error(WrapResStatus.SECURITY_ERROR, "Access denied. Admin or Owner role required."));
+        }
+
+        ReportResponse report = reportService.getReportById(reportId);
+        return ResponseEntity.ok(WrapRes.success(report));
+    }
+
+    @Operation(summary = "Xử lý report", description = "Chỉ ADMIN hoặc OWNER mới có quyền xử lý report.")
+    @ApiResponse(responseCode = "200", description = "Xử lý report thành công")
+    @PatchMapping("/reports/{reportId}/review")
+    public ResponseEntity<WrapRes<?>> reviewReport(
+            @Parameter(description = "ID của report cần xử lý") @PathVariable Long reportId,
+            @io.swagger.v3.oas.annotations.parameters.RequestBody(description = "Thông tin xử lý") @RequestBody AdminReportReviewRequest reviewRequest) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        String currentUserEmail = authentication.getName();
+        User currentUser = userService.findByEmail(currentUserEmail);
+
+        if (!userService.isAdminOrOwner(currentUser)) {
+            return ResponseEntity.status(403)
+                    .body(WrapRes.error(WrapResStatus.SECURITY_ERROR, "Access denied. Admin or Owner role required."));
+        }
+
+        ReportResponse updatedReport = reportService.reviewReport(reportId, reviewRequest.getStatus(), 
+                reviewRequest.getAdminNotes(), reviewRequest.getPriority(), currentUser.getId());
+        return ResponseEntity.ok(WrapRes.success(Map.of(
+                "message", "Report reviewed successfully",
+                "report", updatedReport)));
+    }
+
+    @Operation(summary = "Lấy danh sách report theo trạng thái", description = "Chỉ ADMIN hoặc OWNER mới có quyền truy cập.")
+    @ApiResponse(responseCode = "200", description = "Danh sách report theo trạng thái")
+    @GetMapping("/reports/status/{status}")
+    public ResponseEntity<WrapRes<List<ReportResponse>>> getReportsByStatus(
+            @Parameter(description = "Trạng thái report") @PathVariable String status) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        String currentUserEmail = authentication.getName();
+        User currentUser = userService.findByEmail(currentUserEmail);
+
+        if (!userService.isAdminOrOwner(currentUser)) {
+            return ResponseEntity.status(403)
+                    .body(WrapRes.error(WrapResStatus.SECURITY_ERROR, "Access denied. Admin or Owner role required."));
+        }
+
+        List<ReportResponse> reports = reportService.getReportByStatus(status);
+        return ResponseEntity.ok(WrapRes.success(reports));
+    }
+
+    @Operation(summary = "Lấy thống kê report", description = "Chỉ ADMIN hoặc OWNER mới có quyền xem thống kê.")
+    @ApiResponse(responseCode = "200", description = "Thống kê report")
+    @GetMapping("/reports/analytics")
+    public ResponseEntity<WrapRes<ReportAnalyticsResponse>> getReportAnalytics() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        String currentUserEmail = authentication.getName();
+        User currentUser = userService.findByEmail(currentUserEmail);
+
+        if (!userService.isAdminOrOwner(currentUser)) {
+            return ResponseEntity.status(403)
+                    .body(WrapRes.error(WrapResStatus.SECURITY_ERROR, "Access denied. Admin or Owner role required."));
+        }
+
+        ReportAnalyticsResponse analytics = reportService.getReportAnalytics();
+        return ResponseEntity.ok(WrapRes.success(analytics));
+    }
+
+    @Operation(summary = "Xóa report", description = "Chỉ ADMIN hoặc OWNER mới có quyền xóa report.")
+    @ApiResponse(responseCode = "200", description = "Xóa report thành công")
+    @DeleteMapping("/reports/{reportId}")
+    public ResponseEntity<WrapRes<?>> deleteReport(
+            @Parameter(description = "ID của report cần xóa") @PathVariable Long reportId) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        String currentUserEmail = authentication.getName();
+        User currentUser = userService.findByEmail(currentUserEmail);
+
+        if (!userService.isAdminOrOwner(currentUser)) {
+            return ResponseEntity.status(403)
+                    .body(WrapRes.error(WrapResStatus.SECURITY_ERROR, "Access denied. Admin or Owner role required."));
+        }
+
+        reportService.deleteReport(reportId);
+        return ResponseEntity.ok(WrapRes.success(Map.of("message", "Report deleted successfully")));
     }
 }

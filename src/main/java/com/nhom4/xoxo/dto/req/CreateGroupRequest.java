@@ -19,4 +19,8 @@ public class CreateGroupRequest {
     private String coverUrl;
     @NotNull(message = "Privacy level cannot be null")
     private PrivacyLevel privacy;
+    private String rules;
+    private String tags; // JSON array of tags
+    private String location;
+    private String website;
 }

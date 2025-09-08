@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <title>Messenger WS Tester</title>
+  <style>
+    body { font-family: Arial, sans-serif; max-width: 900px; margin: 24px auto; }
+    textarea,input,button { font-size: 14px; }
+    .row { margin: 8px 0; }
+    #log { border:1px solid #ccc; padding:8px; height:260px; overflow:auto; background:#fafafa; }
+    label { display:inline-block; width:140px; }
+  </style>
+</head>
+<body>
+  <h2>Messenger WebSocket/STOMP Test</h2>
+
+  <div class="row">
+    <label>WS URL</label>
+    <input id="wsUrl" value="https://localhost:8443/ws" size="40"/>
+  </div>
+  <div class="row">
+    <label>Authorization</label>
+    <textarea id="token" rows="2" cols="70">Bearer ey...</textarea>
+  </div>
+  <div class="row">
+    <label>Room ID</label>
+    <input id="roomId" value="1" size="10"/>
+    <button onclick="connect()">Connect</button>
+    <button onclick="disconnect()">Disconnect</button>
+  </div>
+
+  <h3>Subscriptions</h3>
+  <div class="row">
+    <button onclick="subRoom()">Subscribe Room (/topic/chat/{roomId})</button>
+    <button onclick="unsubRoom()">Unsubscribe Room</button>
+  </div>
+  <div class="row">
+    <button onclick="subPrivate()">Subscribe Private (/user/queue/private-message)</button>
+    <button onclick="unsubPrivate()">Unsubscribe Private</button>
+  </div>
+
+  <h3>Send</h3>
+  <div class="row">
+    <label>Message</label>
+    <input id="msg" placeholder="message..." size="40"/>
+    <button onclick="sendText()">Send Text</button>
+  </div>
+  <div class="row">
+    <button onclick="typingStart()">Typing Start</button>
+    <button onclick="typingStop()">Typing Stop</button>
+  </div>
+
+  <h3>Log</h3>
+  <pre id="log"></pre>
+
+  <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1.6.1/dist/sockjs.min.js"></script>
+  <script src="https://unpkg.com/@stomp/stompjs@7.0.0/bundles/stomp.umd.min.js"></script>
+  <script>
+    let client, subRoomRef, subPrivateRef;
+    const log = (m) => { const el = document.getElementById('log'); el.textContent += m + '\n'; el.scrollTop = el.scrollHeight; };
+
+    function connect() {
+      const wsUrl = document.getElementById('wsUrl').value.trim();
+      const token = document.getElementById('token').value.trim();
+      const useSockJS = wsUrl.startsWith('http');
+
+      if (client && client.active) {
+        log('Already connected.');
+        return;
+      }
+
+      client = new StompJs.Client({
+        // For SockJS (recommended with HTTPS + self-signed), use webSocketFactory
+        webSocketFactory: useSockJS ? () => new SockJS(wsUrl) : null,
+        brokerURL: useSockJS ? undefined : wsUrl, // native ws if wss://.../ws-native
+        connectHeaders: { Authorization: token },
+        debug: (m) => log('[stomp] ' + m),
+        reconnectDelay: 3000
+      });
+
+      client.onConnect = () => {
+        log('Connected.');
+      };
+      client.onStompError = frame => log('STOMP error: ' + frame.headers['message']);
+      client.onWebSocketError = e => log('WS error: ' + (e?.message || e));
+      client.activate();
+    }
+
+    function disconnect() {
+      if (client) {
+        try { subRoomRef?.unsubscribe(); } catch {}
+        try { subPrivateRef?.unsubscribe(); } catch {}
+        client.deactivate().then(() => log('Disconnected.'));
+      }
+    }
+
+    function subRoom() {
+      const roomId = document.getElementById('roomId').value.trim();
+      if (!client?.active) return log('Not connected.');
+      subRoomRef = client.subscribe(`/topic/chat/${roomId}`, msg => log('[room] ' + msg.body));
+      log(`Subscribed room ${roomId}`);
+    }
+
+    function unsubRoom() {
+      try { subRoomRef?.unsubscribe(); log('Unsubscribed room'); } catch (e) { log('Unsub room err: ' + e); }
+    }
+
+    function subPrivate() {
+      if (!client?.active) return log('Not connected.');
+      subPrivateRef = client.subscribe('/user/queue/private-message', msg => log('[private] ' + msg.body));
+      log('Subscribed private queue');
+    }
+
+    function unsubPrivate() {
+      try { subPrivateRef?.unsubscribe(); log('Unsubscribed private'); } catch (e) { log('Unsub private err: ' + e); }
+    }
+
+    function sendText() {
+      if (!client?.active) return log('Not connected.');
+      const roomId = Number(document.getElementById('roomId').value.trim());
+      const text = document.getElementById('msg').value;
+      client.publish({
+        destination: '/app/send-message',
+        body: JSON.stringify({ chatRoomId: roomId, content: text, type: 'TEXT' })
+      });
+      log('Sent text to room ' + roomId);
+    }
+
+    function typingStart() {
+      if (!client?.active) return log('Not connected.');
+      const roomId = Number(document.getElementById('roomId').value.trim());
+      client.publish({ destination: '/app/typing/start', body: JSON.stringify({ chatRoomId: roomId }) });
+      log('Typing start');
+    }
+
+    function typingStop() {
+      if (!client?.active) return log('Not connected.');
+      const roomId = Number(document.getElementById('roomId').value.trim());
+      client.publish({ destination: '/app/typing/stop', body: JSON.stringify({ chatRoomId: roomId }) });
+      log('Typing stop');
+    }
+  </script>
+</body>
+</html>

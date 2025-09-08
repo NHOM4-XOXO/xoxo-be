@@ -6,7 +6,6 @@ import com.nhom4.xoxo.dto.res.GroupMemberResponse;
 import com.nhom4.xoxo.enums.GroupMemberStatus;
 import com.nhom4.xoxo.service.GroupMemberService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -44,11 +43,11 @@ public class GroupMemberController {
     }
 
     @GetMapping("/{groupId}/members")
-    public ResponseEntity<WrapRes<Page<GroupMemberResponse>>> getGroupMembers(
+    public ResponseEntity<WrapRes<com.nhom4.xoxo.dto.res.GroupMembersResponse>> getGroupMembers(
             @PathVariable Long groupId,
             @RequestParam(required = false) GroupMemberStatus status,
             Pageable pageable) {
-        Page<GroupMemberResponse> response = groupMemberService.getGroupMembers(groupId, status, pageable);
+        var response = groupMemberService.getGroupMembersDetail(groupId, status, pageable);
         return ResponseEntity.ok(WrapRes.success(response));
     }
 }

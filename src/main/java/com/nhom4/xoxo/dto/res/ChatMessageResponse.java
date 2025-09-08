@@ -29,4 +29,10 @@ public class ChatMessageResponse {
     private boolean read;
     private LocalDateTime deliveredAt;
     private LocalDateTime readAt;
+    private boolean deleted;
+    private boolean edited;
+    private LocalDateTime editedAt;
+    private boolean pinned;
+    private java.util.Map<String, Integer> reactions;
+    private java.util.List<String> mentionedUserIds;
 }

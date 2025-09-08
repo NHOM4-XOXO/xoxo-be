@@ -38,9 +38,15 @@ public class MediaServiceImpl implements MediaService {
     public Media uploadMedia(MultipartFile file, MediaType mediaType, User user) {
         try {
             String originalFilename = file.getOriginalFilename();
-            // Upload to Cloudinary under folder 'posts'
-            String publicId = cloudinaryService.uploadImage(file, "posts");
-            String mediaUrl = cloudinaryService.buildCloudinaryUrl(publicId);
+            
+            // Validate file type before upload
+            if (!isValidFileForMediaType(file, mediaType)) {
+                throw new RuntimeException("File type không hợp lệ cho " + mediaType + ". File: " + originalFilename);
+            }
+            
+            // Upload to Cloudinary with correct media type
+            String publicId = cloudinaryService.uploadMedia(file, "posts", mediaType);
+            String mediaUrl = cloudinaryService.buildCloudinaryUrl(publicId, mediaType);
             
             Media media = Media.builder()
                 .mediaUrl(mediaUrl)
@@ -52,7 +58,20 @@ public class MediaServiceImpl implements MediaService {
             
             return mediaRepository.save(media);
         } catch (Exception e) {
-            throw new RuntimeException("Failed to upload media: " + e.getMessage());
+            throw new RuntimeException("Failed to upload media: " + e.getMessage(), e);
+        }
+    }
+
+    private boolean isValidFileForMediaType(MultipartFile file, MediaType mediaType) {
+        switch (mediaType) {
+            case IMAGE:
+                return cloudinaryService.isValidImageFile(file);
+            case VIDEO:
+                return cloudinaryService.isValidVideoFile(file);
+            case AUDIO:
+                return cloudinaryService.isValidAudioFile(file);
+            default:
+                return false;
         }
     }
     

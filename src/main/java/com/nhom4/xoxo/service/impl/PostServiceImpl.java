@@ -54,7 +54,7 @@ public class PostServiceImpl implements PostService {
 
     public PostServiceImpl(PostRepository postRepository, CommentRepository commentRepository,
             SharePostRepository sharePostRepository, MediaRoomRepository mediaRoomRepository,
-            MediaRepository mediaRepository, PostLikeRepository postLikeRepository, 
+            MediaRepository mediaRepository, PostLikeRepository postLikeRepository,
             CloudinaryService cloudinaryService, NotificationService notificationService) {
         this.postRepository = postRepository;
         this.commentRepository = commentRepository;
@@ -81,23 +81,72 @@ public class PostServiceImpl implements PostService {
         return postRepository.findPostItemById(postId);
     }
 
-
-
     @Override
     public List<PostItemResponse> getAllPosts() {
         return postRepository.findAll2();
     }
 
     @Override
-    public List<PostItemResponse> getPostsByAuthor(User author) {
-        return postRepository.findPostItemByAuthor(author);
+    public List<PostWithMediaResponse> getPostsByAuthor(User author) {
+        List<PostItemResponse> posts = postRepository.findPostItemByAuthor(author);
+        List<PostWithMediaResponse> postsWithMedia = posts.stream()
+                .map(p -> PostWithMediaResponse.builder()
+                        .post(p)
+                        .media(getPostMedia(p.id()).stream()
+                                .map(m -> {
+                                    com.nhom4.xoxo.dto.res.UserResponse uploadedBy;
+                                    if (m.getUploadedBy() != null) {
+                                        var u = m.getUploadedBy();
+                                        uploadedBy = com.nhom4.xoxo.dto.res.UserResponse.builder()
+                                                .id(u.getId())
+                                                .email(u.getEmail())
+                                                .firstName(u.getFirstName())
+                                                .lastName(u.getLastName())
+                                                .roles(u.getRoles())
+                                                .dateOfBirth(u.getDateOfBirth())
+                                                .gender(u.getGender())
+                                                .avatarUrl(u.getAvatarUrl())
+                                                .coverUrl(u.getCoverUrl())
+                                                .bio(u.getBio())
+                                                .createdAt(u.getCreatedAt())
+                                                .updatedAt(u.getUpdatedAt())
+                                                .enabled(u.isEnabled())
+                                                .username(u.getUsername())
+                                                .build();
+                                    } else {
+                                        uploadedBy = com.nhom4.xoxo.dto.res.UserResponse.builder()
+                                                .id(p.authorId())
+                                                .firstName(p.authorFirstName())
+                                                .lastName(p.authorLastName())
+                                                .avatarUrl(p.authorAvatarUrl())
+                                                .build();
+                                    }
+                                    return MediaResponse.builder()
+                                            .id(m.getId())
+                                            .mediaUrl(m.getMediaUrl())
+                                            .mediaType(m.getMediaType())
+                                            .originalFilename(m.getOriginalFilename())
+                                            .fileSize(m.getFileSize())
+                                            .uploadedBy(uploadedBy)
+                                            .createdAt(m.getCreatedAt() != null ? m.getCreatedAt() : p.createdAt())
+                                            .updatedAt(m.getUpdatedAt() != null ? m.getUpdatedAt() : p.updatedAt())
+                                            .build();
+                                })
+                                .collect(Collectors.toList()))
+                        .build())
+                .collect(Collectors.toList());
+        return postsWithMedia;
     }
 
     @Override
     @Transactional(readOnly = true, transactionManager = "transactionManager")
     public List<Media> getPostMedia(Long postId) {
         List<Media> mediaList = postRepository.findMediaByPostId(postId);
-        mediaList.forEach(m -> m.setMediaUrl(cloudinaryService.buildCloudinaryUrl(m.getMediaUrl())));
+        mediaList.forEach(m -> {
+            // Use new method that supports video URLs
+            String mediaUrl = cloudinaryService.buildCloudinaryUrl(m.getMediaUrl(), m.getMediaType());
+            m.setMediaUrl(mediaUrl);
+        });
         return mediaList;
     }
 
@@ -117,13 +166,13 @@ public class PostServiceImpl implements PostService {
     public void addMediaToPost(Long postId, Long mediaId) {
         Media media = mediaRepository.findById(mediaId)
                 .orElseThrow(() -> new NotFoundException("Media not found with id: " + mediaId));
-    
+
         MediaRoom mediaRoom = MediaRoom.builder()
                 .media(media)
                 .targetId(postId)
                 .targetType(MediaRoomTargetType.POST)
                 .build();
-    
+
         mediaRoomRepository.save(mediaRoom);
     }
 
@@ -196,18 +245,19 @@ public class PostServiceImpl implements PostService {
         post.setViewCount(post.getViewCount() + 1);
         postRepository.save(post);
     }
+
     @Override
     @Transactional(transactionManager = "transactionManager")
     public boolean toggleLike(Long postId, User user) {
         try {
             log.info("[PostService] Starting toggleLike for postId: {}, userId: {}", postId, user.getId());
-            
+
             Post post = getPostById(postId).get();
             log.info("[PostService] Found post: {}", post.getId());
-            
+
             Optional<PostLike> existing = postLikeRepository.findByPostAndUser(post, user);
             log.info("[PostService] Existing like found: {}", existing.isPresent());
-            
+
             if (existing.isPresent()) {
                 log.info("[PostService] Deleting existing like");
                 postLikeRepository.delete(existing.get());
@@ -216,26 +266,26 @@ public class PostServiceImpl implements PostService {
                 log.info("[PostService] Post unliked successfully, new count: {}", post.getLikeCount());
                 return false; // now unliked
             }
-            
+
             log.info("[PostService] Creating new like");
             PostLike like = PostLike.builder().post(post).user(user).build();
             PostLike savedLike = postLikeRepository.save(like);
             log.info("[PostService] Like saved with ID: {}", savedLike.getId());
-            
+
             post.setLikeCount(post.getLikeCount() + 1);
             Post savedPost = postRepository.save(post);
             log.info("[PostService] Post updated, new count: {}", savedPost.getLikeCount());
-            
+
             // Gửi notification cho chủ bài viết (trừ khi user like chính bài viết của mình)
             if (!post.getAuthor().getId().equals(user.getId())) {
                 log.info("[PostService] Sending notification to post owner: {}", post.getAuthor().getId());
                 notificationService.sendPostLikeNotification(postId, post.getAuthor().getId(), user.getId());
                 log.info("[PostService] Notification sent successfully");
             }
-            
+
             log.info("[PostService] Post liked successfully");
             return true; // now liked
-            
+
         } catch (Exception e) {
             log.error("[PostService] Error in toggleLike: {}", e.getMessage(), e);
             throw e;
@@ -247,22 +297,24 @@ public class PostServiceImpl implements PostService {
     public CommentItemResponse addComment(Long postId, User author, String content, Long parentId) {
         Post post = getPostById(postId).get();
         Comment.CommentBuilder b = Comment.builder().post(post).author(author).content(content);
-        if (parentId != null) b.parentComment(commentRepository.findById(parentId).orElseThrow(() -> new NotFoundException("Parent comment not found")));
+        if (parentId != null)
+            b.parentComment(commentRepository.findById(parentId)
+                    .orElseThrow(() -> new NotFoundException("Parent comment not found")));
         Comment saved = commentRepository.save(b.build());
         post.setCommentCount(post.getCommentCount() + 1);
         postRepository.save(post);
-        
-        // Gửi notification cho chủ bài viết (trừ khi user comment chính bài viết của mình)
+
+        // Gửi notification cho chủ bài viết (trừ khi user comment chính bài viết của
+        // mình)
         if (!post.getAuthor().getId().equals(author.getId())) {
             notificationService.sendPostCommentNotification(postId, post.getAuthor().getId(), author.getId());
         }
-        
+
         return new CommentItemResponse(
-            saved.getId(), saved.getContent(), saved.getLikeCount(),
-            author.getId(), author.getFirstName(), author.getLastName(), author.getAvatarUrl(),
-            saved.getParentComment() != null ? saved.getParentComment().getId() : null,
-            post.getId(), saved.getCreatedAt()
-        );
+                saved.getId(), saved.getContent(), saved.getLikeCount(),
+                author.getId(), author.getFirstName(), author.getLastName(), author.getAvatarUrl(),
+                saved.getParentComment() != null ? saved.getParentComment().getId() : null,
+                post.getId(), saved.getCreatedAt());
     }
 
     @Override
@@ -273,12 +325,13 @@ public class PostServiceImpl implements PostService {
                 SharePost.builder().originalPost(post).sharer(sharer).shareContent(shareContent).build());
         post.setShareCount(post.getShareCount() + 1);
         postRepository.save(post);
-        
-        // Gửi notification cho chủ bài viết (trừ khi user share chính bài viết của mình)
+
+        // Gửi notification cho chủ bài viết (trừ khi user share chính bài viết của
+        // mình)
         if (!post.getAuthor().getId().equals(sharer.getId())) {
             notificationService.sendPostShareNotification(postId, post.getAuthor().getId(), sharer.getId());
         }
-        
+
         return new SharePostItemResponse(
                 saved.getId(), saved.getShareContent(),
                 post.getId(),
@@ -292,19 +345,19 @@ public class PostServiceImpl implements PostService {
     public List<UserLikeResponse> getUsersLikedPost(Long postId) {
         Post post = getPostById(postId).get();
         List<PostLike> postLikes = postLikeRepository.findAllByPostWithUser(post);
-        
+
         return postLikes.stream()
                 .map(PostLike::getUser)
                 .map(user -> UserLikeResponse.builder()
-                    .id(user.getId())
-                    .firstName(user.getFirstName())
-                    .lastName(user.getLastName())
-                    .avatarUrl(user.getAvatarUrl())
-                    .username(user.getUsername())
-                    .roles(user.getRoles().stream()
-                        .map(role -> role.name())
-                        .collect(Collectors.toSet()))
-                    .build())
+                        .id(user.getId())
+                        .firstName(user.getFirstName())
+                        .lastName(user.getLastName())
+                        .avatarUrl(user.getAvatarUrl())
+                        .username(user.getUsername())
+                        .roles(user.getRoles().stream()
+                                .map(role -> role.name())
+                                .collect(Collectors.toSet()))
+                        .build())
                 .collect(Collectors.toList());
     }
 
@@ -315,8 +368,10 @@ public class PostServiceImpl implements PostService {
         return sharePostRepository.findByOriginalPost(post).stream()
                 .map(sp -> new SharePostItemResponse(
                         sp.getId(), sp.getShareContent(), post.getId(),
-                        sp.getSharer().getId(), sp.getSharer().getFirstName(), sp.getSharer().getLastName(), sp.getSharer().getAvatarUrl(),
-                        sp.getLikeCount(), sp.getCommentCount(), sp.getShareCount(), sp.getViewCount(), sp.getCreatedAt()))
+                        sp.getSharer().getId(), sp.getSharer().getFirstName(), sp.getSharer().getLastName(),
+                        sp.getSharer().getAvatarUrl(),
+                        sp.getLikeCount(), sp.getCommentCount(), sp.getShareCount(), sp.getViewCount(),
+                        sp.getCreatedAt()))
                 .collect(Collectors.toList());
     }
 
@@ -327,7 +382,8 @@ public class PostServiceImpl implements PostService {
         return commentRepository.findTopLevelCommentsByPost(post).stream()
                 .map(c -> new CommentItemResponse(
                         c.getId(), c.getContent(), c.getLikeCount(),
-                        c.getAuthor().getId(), c.getAuthor().getFirstName(), c.getAuthor().getLastName(), c.getAuthor().getAvatarUrl(),
+                        c.getAuthor().getId(), c.getAuthor().getFirstName(), c.getAuthor().getLastName(),
+                        c.getAuthor().getAvatarUrl(),
                         null, post.getId(), c.getCreatedAt()))
                 .collect(Collectors.toList());
     }
@@ -336,51 +392,51 @@ public class PostServiceImpl implements PostService {
     public List<PostWithMediaResponse> getPublicPostsWithMedia() {
         List<PostItemResponse> posts = postRepository.findByIsPublicTrue();
         List<PostWithMediaResponse> postsWithMedia = posts.stream()
-            .map(p -> PostWithMediaResponse.builder()
-                .post(p)
-                .media(getPostMedia(p.id()).stream()
-                    .map(m -> {
-                        com.nhom4.xoxo.dto.res.UserResponse uploadedBy;
-                        if (m.getUploadedBy() != null) {
-                            var u = m.getUploadedBy();
-                            uploadedBy = com.nhom4.xoxo.dto.res.UserResponse.builder()
-                                .id(u.getId())
-                                .email(u.getEmail())
-                                .firstName(u.getFirstName())
-                                .lastName(u.getLastName())
-                                .roles(u.getRoles())
-                                .dateOfBirth(u.getDateOfBirth())
-                                .gender(u.getGender())
-                                .avatarUrl(u.getAvatarUrl())
-                                .coverUrl(u.getCoverUrl())
-                                .bio(u.getBio())
-                                .createdAt(u.getCreatedAt())
-                                .updatedAt(u.getUpdatedAt())
-                                .enabled(u.isEnabled())
-                                .username(u.getUsername())
-                                .build();
-                        } else {
-                            uploadedBy = com.nhom4.xoxo.dto.res.UserResponse.builder()
-                                .id(p.authorId())
-                                .firstName(p.authorFirstName())
-                                .lastName(p.authorLastName())
-                                .avatarUrl(p.authorAvatarUrl())
-                                .build();
-                        }
-                        return MediaResponse.builder()
-                            .id(m.getId())
-                            .mediaUrl(m.getMediaUrl())
-                            .mediaType(m.getMediaType())
-                            .originalFilename(m.getOriginalFilename())
-                            .fileSize(m.getFileSize())
-                            .uploadedBy(uploadedBy)
-                            .createdAt(m.getCreatedAt() != null ? m.getCreatedAt() : p.createdAt())
-                            .updatedAt(m.getUpdatedAt() != null ? m.getUpdatedAt() : p.updatedAt())
-                            .build();
-                    })
-                    .collect(Collectors.toList()))
-                .build())
-            .collect(Collectors.toList());
+                .map(p -> PostWithMediaResponse.builder()
+                        .post(p)
+                        .media(getPostMedia(p.id()).stream()
+                                .map(m -> {
+                                    com.nhom4.xoxo.dto.res.UserResponse uploadedBy;
+                                    if (m.getUploadedBy() != null) {
+                                        var u = m.getUploadedBy();
+                                        uploadedBy = com.nhom4.xoxo.dto.res.UserResponse.builder()
+                                                .id(u.getId())
+                                                .email(u.getEmail())
+                                                .firstName(u.getFirstName())
+                                                .lastName(u.getLastName())
+                                                .roles(u.getRoles())
+                                                .dateOfBirth(u.getDateOfBirth())
+                                                .gender(u.getGender())
+                                                .avatarUrl(u.getAvatarUrl())
+                                                .coverUrl(u.getCoverUrl())
+                                                .bio(u.getBio())
+                                                .createdAt(u.getCreatedAt())
+                                                .updatedAt(u.getUpdatedAt())
+                                                .enabled(u.isEnabled())
+                                                .username(u.getUsername())
+                                                .build();
+                                    } else {
+                                        uploadedBy = com.nhom4.xoxo.dto.res.UserResponse.builder()
+                                                .id(p.authorId())
+                                                .firstName(p.authorFirstName())
+                                                .lastName(p.authorLastName())
+                                                .avatarUrl(p.authorAvatarUrl())
+                                                .build();
+                                    }
+                                    return MediaResponse.builder()
+                                            .id(m.getId())
+                                            .mediaUrl(m.getMediaUrl())
+                                            .mediaType(m.getMediaType())
+                                            .originalFilename(m.getOriginalFilename())
+                                            .fileSize(m.getFileSize())
+                                            .uploadedBy(uploadedBy)
+                                            .createdAt(m.getCreatedAt() != null ? m.getCreatedAt() : p.createdAt())
+                                            .updatedAt(m.getUpdatedAt() != null ? m.getUpdatedAt() : p.updatedAt())
+                                            .build();
+                                })
+                                .collect(Collectors.toList()))
+                        .build())
+                .collect(Collectors.toList());
         return postsWithMedia;
     }
 
@@ -388,53 +444,136 @@ public class PostServiceImpl implements PostService {
     public List<PostWithMediaResponse> getPublicPosts() {
         List<PostItemResponse> posts = postRepository.findByIsPublicTrue();
         List<PostWithMediaResponse> postsWithMedia = posts.stream()
-            .map(p -> PostWithMediaResponse.builder()
-                .post(p)
-                .media(getPostMedia(p.id()).stream()
-                    .map(m -> {
-                        com.nhom4.xoxo.dto.res.UserResponse uploadedBy;
-                        if (m.getUploadedBy() != null) {
-                            var u = m.getUploadedBy();
-                            uploadedBy = com.nhom4.xoxo.dto.res.UserResponse.builder()
-                                .id(u.getId())
-                                .email(u.getEmail())
-                                .firstName(u.getFirstName())
-                                .lastName(u.getLastName())
-                                .roles(u.getRoles())
-                                .dateOfBirth(u.getDateOfBirth())
-                                .gender(u.getGender())
-                                .avatarUrl(u.getAvatarUrl())
-                                .coverUrl(u.getCoverUrl())
-                                .bio(u.getBio())
-                                .createdAt(u.getCreatedAt())
-                                .updatedAt(u.getUpdatedAt())
-                                .enabled(u.isEnabled())
-                                .username(u.getUsername())
-                                .build();
-                        } else {
-                            uploadedBy = com.nhom4.xoxo.dto.res.UserResponse.builder()
-                                .id(p.authorId())
-                                .firstName(p.authorFirstName())
-                                .lastName(p.authorLastName())
-                                .avatarUrl(p.authorAvatarUrl())
-                                .build();
-                        }
-                        return MediaResponse.builder()
-                            .id(m.getId())
-                            .mediaUrl(m.getMediaUrl())
-                            .mediaType(m.getMediaType())
-                            .originalFilename(m.getOriginalFilename())
-                            .fileSize(m.getFileSize())
-                            .uploadedBy(uploadedBy)
-                            .createdAt(m.getCreatedAt() != null ? m.getCreatedAt() : p.createdAt())
-                            .updatedAt(m.getUpdatedAt() != null ? m.getUpdatedAt() : p.updatedAt())
-                            .build();
-                    })
-                    .collect(Collectors.toList()))
-                .build())
-            .collect(Collectors.toList());
+                .map(p -> PostWithMediaResponse.builder()
+                        .post(p)
+                        .media(getPostMedia(p.id()).stream()
+                                .map(m -> {
+                                    com.nhom4.xoxo.dto.res.UserResponse uploadedBy;
+                                    if (m.getUploadedBy() != null) {
+                                        var u = m.getUploadedBy();
+                                        uploadedBy = com.nhom4.xoxo.dto.res.UserResponse.builder()
+                                                .id(u.getId())
+                                                .email(u.getEmail())
+                                                .firstName(u.getFirstName())
+                                                .lastName(u.getLastName())
+                                                .roles(u.getRoles())
+                                                .dateOfBirth(u.getDateOfBirth())
+                                                .gender(u.getGender())
+                                                .avatarUrl(u.getAvatarUrl())
+                                                .coverUrl(u.getCoverUrl())
+                                                .bio(u.getBio())
+                                                .createdAt(u.getCreatedAt())
+                                                .updatedAt(u.getUpdatedAt())
+                                                .enabled(u.isEnabled())
+                                                .username(u.getUsername())
+                                                .build();
+                                    } else {
+                                        uploadedBy = com.nhom4.xoxo.dto.res.UserResponse.builder()
+                                                .id(p.authorId())
+                                                .firstName(p.authorFirstName())
+                                                .lastName(p.authorLastName())
+                                                .avatarUrl(p.authorAvatarUrl())
+                                                .build();
+                                    }
+                                    return MediaResponse.builder()
+                                            .id(m.getId())
+                                            .mediaUrl(m.getMediaUrl())
+                                            .mediaType(m.getMediaType())
+                                            .originalFilename(m.getOriginalFilename())
+                                            .fileSize(m.getFileSize())
+                                            .uploadedBy(uploadedBy)
+                                            .createdAt(m.getCreatedAt() != null ? m.getCreatedAt() : p.createdAt())
+                                            .updatedAt(m.getUpdatedAt() != null ? m.getUpdatedAt() : p.updatedAt())
+                                            .build();
+                                })
+                                .collect(Collectors.toList()))
+                        .build())
+                .collect(Collectors.toList());
         return postsWithMedia;
-        
+    }
+
+    // ==================== Facebook-style Reaction Methods ====================
+
+    @Override
+    public void updateReactionCounts(Long postId) {
+        // This method will be called by PostReactionService to sync counts
+        Post post = getPostById(postId).orElseThrow(() -> new NotFoundException("Post not found"));
+
+        // Count reactions from PostReaction table
+        // This would be implemented when PostReactionRepository is available
+        log.info("Updating reaction counts for post: {}", postId);
+    }
+
+    @Override
+    public PostItemResponse getPostWithReactions(Long postId, Long currentUserId) {
+        // Get post with reaction data for current user
+        PostItemResponse post = getPostItemById(postId).orElse(null);
+
+        // Add reaction information
+        // This would include user's current reaction and reaction stats
+        return post;
+    }
+
+    @Override
+    public List<PostItemResponse> getPostsWithReactions(Long currentUserId) {
+        // Get all posts with reaction information for current user
+        List<PostItemResponse> posts = getAllPosts();
+
+        // Add reaction information to each post
+        // This would include user's reactions and reaction stats
+        return posts;
+    }
+
+    @Override
+    public List<PostWithMediaResponse> getPostsByCurrentUser(User currentUser) {
+        List<PostItemResponse> posts = postRepository.findPostItemByCurrentUser(currentUser);
+        List<PostWithMediaResponse> postsWithMedia = posts.stream()
+                .map(p -> PostWithMediaResponse.builder()
+                        .post(p)
+                        .media(getPostMedia(p.id()).stream()
+                                .map(m -> {
+                                    com.nhom4.xoxo.dto.res.UserResponse uploadedBy;
+                                    if (m.getUploadedBy() != null) {
+                                        var u = m.getUploadedBy();
+                                        uploadedBy = com.nhom4.xoxo.dto.res.UserResponse.builder()
+                                                .id(u.getId())
+                                                .email(u.getEmail())
+                                                .firstName(u.getFirstName())
+                                                .lastName(u.getLastName())
+                                                .roles(u.getRoles())
+                                                .dateOfBirth(u.getDateOfBirth())
+                                                .gender(u.getGender())
+                                                .avatarUrl(u.getAvatarUrl())
+                                                .coverUrl(u.getCoverUrl())
+                                                .bio(u.getBio())
+                                                .createdAt(u.getCreatedAt())
+                                                .updatedAt(u.getUpdatedAt())
+                                                .enabled(u.isEnabled())
+                                                .username(u.getUsername())
+                                                .build();
+                                    } else {
+                                        uploadedBy = com.nhom4.xoxo.dto.res.UserResponse.builder()
+                                                .id(p.authorId())
+                                                .firstName(p.authorFirstName())
+                                                .lastName(p.authorLastName())
+                                                .avatarUrl(p.authorAvatarUrl())
+                                                .build();
+                                    }
+                                    return MediaResponse.builder()
+                                            .id(m.getId())
+                                            .mediaUrl(m.getMediaUrl())
+                                            .mediaType(m.getMediaType())
+                                            .originalFilename(m.getOriginalFilename())
+                                            .fileSize(m.getFileSize())
+                                            .uploadedBy(uploadedBy)
+                                            .createdAt(m.getCreatedAt() != null ? m.getCreatedAt() : p.createdAt())
+                                            .updatedAt(m.getUpdatedAt() != null ? m.getUpdatedAt() : p.updatedAt())
+                                            .build();
+                                })
+                                .collect(Collectors.toList()))
+                        .build())
+                .collect(Collectors.toList());
+        return postsWithMedia;
     }
 
 }

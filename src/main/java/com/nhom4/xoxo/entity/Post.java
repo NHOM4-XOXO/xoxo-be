@@ -71,6 +71,14 @@ public class Post extends BaseEntity {
 
     @Column(nullable = false)
     @Builder.Default
+    private Integer reactionCount = 0;
+
+    // JSON field để store reaction counts theo type
+    @Column(name = "reaction_summary", columnDefinition = "JSON")
+    private String reactionSummary; // {"LIKE": 10, "LOVE": 5, "HAHA": 2}
+
+    @Column(nullable = false)
+    @Builder.Default
     private Integer commentCount = 0;
 
     @Column(nullable = false)

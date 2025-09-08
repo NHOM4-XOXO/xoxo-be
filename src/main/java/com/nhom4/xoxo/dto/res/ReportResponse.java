@@ -2,6 +2,7 @@ package com.nhom4.xoxo.dto.res;
 
 import java.time.LocalDateTime;
 
+import com.nhom4.xoxo.enums.ReportReason;
 import com.nhom4.xoxo.enums.ReportStatus;
 import com.nhom4.xoxo.enums.ReportTargetType;
 
@@ -21,7 +22,14 @@ public class ReportResponse {
     private String reporterEmail;
     private ReportTargetType reportTargetType;
     private Long reportTargetId;
-    private String reportReason;
+    private ReportReason reportReason;
+    private String additionalInfo;
     private ReportStatus status;
+    private Long reviewedById;
+    private String reviewedByName;
+    private LocalDateTime reviewedAt;
+    private String adminNotes;
+    private Boolean isAnonymous;
+    private Integer priority;
     private LocalDateTime createdAt;
 }

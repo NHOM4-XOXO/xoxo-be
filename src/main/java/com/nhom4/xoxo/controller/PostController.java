@@ -1,6 +1,7 @@
 package com.nhom4.xoxo.controller;
 
 import java.util.List;
+import java.util.Map;
 
 import org.modelmapper.ModelMapper;
 import org.springframework.http.ResponseEntity;
@@ -28,6 +29,7 @@ import com.nhom4.xoxo.dto.res.UserResponse;
 import com.nhom4.xoxo.entity.Media;
 import com.nhom4.xoxo.entity.Post;
 import com.nhom4.xoxo.entity.User;
+import com.nhom4.xoxo.service.PostReactionService;
 import com.nhom4.xoxo.service.PostService;
 import com.nhom4.xoxo.service.CloudinaryService;
 import com.nhom4.xoxo.service.UserService;
@@ -43,12 +45,14 @@ import lombok.extern.slf4j.Slf4j;
 public class PostController {
 
     private final PostService postService;
+    private final PostReactionService postReactionService;
     private final UserService userService;
     private final ModelMapper modelMapper;
     private final CloudinaryService cloudinaryService;
 
-    public PostController(PostService postService, UserService userService, ModelMapper modelMapper, CloudinaryService cloudinaryService) {
+    public PostController(PostService postService, PostReactionService postReactionService, UserService userService, ModelMapper modelMapper, CloudinaryService cloudinaryService) {
         this.postService = postService;
+        this.postReactionService = postReactionService;
         this.userService = userService;
         this.modelMapper = modelMapper; // kept for future mappings
         this.cloudinaryService = cloudinaryService;
@@ -145,8 +149,8 @@ public class PostController {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         String email = authentication.getName();
         User currentUser = userService.findByEmail(email);
-        User author = userService.findById(userId, currentUser);
-        List<PostItemResponse> posts = postService.getPostsByAuthor(author);
+        User author = userService.findById( userId);
+        List<PostWithMediaResponse> posts = postService.getPostsByAuthor(author);
  
         return ResponseEntity.ok(WrapRes.success(posts));
     }
@@ -159,56 +163,10 @@ public class PostController {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         String email = authentication.getName();
         User me = userService.findByEmail(email);
-        List<PostItemResponse> myPostItems = postService.getPostsByAuthor(me);
-        List<PostWithMediaResponse> result = myPostItems.stream().map(item -> {
-            List<Media> m = postService.getPostMedia(item.id());
-            List<MediaResponse> mr = m.stream().map(media -> {
-                UserResponse uploadedBy = null;
-                if (media.getUploadedBy() != null) {
-                    var u = media.getUploadedBy();
-                    uploadedBy = UserResponse.builder()
-                        .id(u.getId())
-                        .email(u.getEmail())
-                        .firstName(u.getFirstName())
-                        .lastName(u.getLastName())
-                        .roles(u.getRoles())
-                        .dateOfBirth(u.getDateOfBirth())
-                        .gender(u.getGender())
-                        .avatarUrl(u.getAvatarUrl())
-                        .coverUrl(u.getCoverUrl())
-                        .bio(u.getBio())
-                        .createdAt(u.getCreatedAt())
-                        .updatedAt(u.getUpdatedAt())
-                        .enabled(u.isEnabled())
-                        .username(u.getUsername())
-                        .build();
-                } else {
-                    // Fallback: dùng thông tin tác giả bài viết nếu media không có uploadedBy
-                    uploadedBy = UserResponse.builder()
-                        .id(item.authorId())
-                        .firstName(item.authorFirstName())
-                        .lastName(item.authorLastName())
-                        .avatarUrl(item.authorAvatarUrl())
-                        .build();
-                }
-                return MediaResponse.builder()
-                    .id(media.getId())
-                    .mediaUrl(media.getMediaUrl())
-                    .mediaType(media.getMediaType())
-                    .originalFilename(media.getOriginalFilename())
-                    .fileSize(media.getFileSize())
-                    .uploadedBy(uploadedBy)
-                    .createdAt(media.getCreatedAt() != null ? media.getCreatedAt() : item.createdAt())
-                    .updatedAt(media.getUpdatedAt() != null ? media.getUpdatedAt() : item.updatedAt())
-                    .build();
-            }).toList();
-            return PostWithMediaResponse.builder()
-                    .post(item)
-                    .media(mr)
-                    .build();
-        }).toList();
+        List<PostWithMediaResponse> myPostItems = postService.getPostsByCurrentUser(me);
+        
 
-        return ResponseEntity.ok(WrapRes.success(result));
+        return ResponseEntity.ok(WrapRes.success(myPostItems));
     }
 
     @Operation(summary = "Lấy media của bài viết", description = "Lấy danh sách media của một bài viết", responses = {
@@ -454,7 +412,7 @@ public class PostController {
         
         return MediaResponse.builder()
             .id(media.getId())
-            .mediaUrl(cloudinaryService.buildCloudinaryUrl(media.getMediaUrl()))
+            .mediaUrl(cloudinaryService.buildCloudinaryUrl(media.getMediaUrl(), media.getMediaType()))
             .mediaType(media.getMediaType())
             .originalFilename(media.getOriginalFilename())
             .fileSize(media.getFileSize())
@@ -462,5 +420,187 @@ public class PostController {
             .createdAt(media.getCreatedAt())
             .updatedAt(media.getUpdatedAt())
             .build();
+    }
+
+    // ==================== Facebook-style Reaction Endpoints ====================
+
+    @Operation(summary = "React to post (Facebook style)", description = "Add Facebook-style reaction to post")
+    @PostMapping("/{postId}/react/{reactionType}")
+    public ResponseEntity<WrapRes<Map<String, Object>>> reactToPost(
+            @PathVariable Long postId,
+            @PathVariable com.nhom4.xoxo.enums.PostReactionType reactionType) {
+        
+        var reaction = postReactionService.addReaction(postId, getCurrentUser().getId(), reactionType);
+        var stats = postReactionService.getReactionStats(postId);
+        
+        return ResponseEntity.ok(WrapRes.success(Map.of(
+            "reaction", reaction,
+            "stats", stats,
+            "message", "Reacted with " + reactionType.getDisplayName()
+        )));
+    }
+
+    @Operation(summary = "Remove reaction from post", description = "Remove user's reaction from post")
+    @DeleteMapping("/{postId}/react")
+    public ResponseEntity<WrapRes<Map<String, Object>>> removeReaction(@PathVariable Long postId) {
+        postReactionService.removeReaction(postId, getCurrentUser().getId());
+        var stats = postReactionService.getReactionStats(postId);
+        
+        return ResponseEntity.ok(WrapRes.success(Map.of(
+            "stats", stats,
+            "message", "Reaction removed"
+        )));
+    }
+
+    @Operation(summary = "Get post reactions", description = "Get all reactions for a post with pagination")
+    @GetMapping("/{postId}/reactions")
+    public ResponseEntity<WrapRes<org.springframework.data.domain.Page<com.nhom4.xoxo.dto.res.PostReactionResponse>>> getPostReactions(
+            @PathVariable Long postId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        
+        org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(page, size);
+        var reactions = postReactionService.getPostReactionsPaginated(postId, pageable);
+        return ResponseEntity.ok(WrapRes.success(reactions));
+    }
+
+    @Operation(summary = "Get reaction statistics", description = "Get Facebook-style reaction statistics for post")
+    @GetMapping("/{postId}/reaction-stats")
+    public ResponseEntity<WrapRes<Map<String, Object>>> getPostReactionStats(@PathVariable Long postId) {
+        var stats = postReactionService.getReactionStats(postId);
+        long totalReactions = postReactionService.getTotalReactionCount(postId);
+        
+        // Create Facebook-style summary
+        StringBuilder summary = new StringBuilder();
+        stats.entrySet().stream()
+            .sorted(Map.Entry.<com.nhom4.xoxo.enums.PostReactionType, Long>comparingByValue().reversed())
+            .forEach(entry -> {
+                if (summary.length() > 0) summary.append(", ");
+                summary.append(entry.getKey().getEmoji()).append(" ").append(entry.getValue());
+            });
+        
+        return ResponseEntity.ok(WrapRes.success(Map.of(
+            "totalReactions", totalReactions,
+            "reactionBreakdown", stats,
+            "reactionSummary", summary.toString(),
+            "topReactions", stats.entrySet().stream()
+                .sorted(Map.Entry.<com.nhom4.xoxo.enums.PostReactionType, Long>comparingByValue().reversed())
+                .limit(3)
+                .collect(java.util.stream.Collectors.toMap(
+                    Map.Entry::getKey,
+                    Map.Entry::getValue,
+                    (e1, e2) -> e1,
+                    java.util.LinkedHashMap::new
+                ))
+        )));
+    }
+
+    @Operation(summary = "Check user reaction", description = "Check if current user has reacted to post")
+    @GetMapping("/{postId}/my-reaction")
+    public ResponseEntity<WrapRes<Map<String, Object>>> checkMyReaction(@PathVariable Long postId) {
+        Long userId = getCurrentUser().getId();
+        boolean hasReacted = postReactionService.hasUserReacted(postId, userId);
+        var reactionType = postReactionService.getUserReactionType(postId, userId);
+        
+        return ResponseEntity.ok(WrapRes.success(Map.of(
+            "hasReacted", hasReacted,
+            "reactionType", reactionType != null ? reactionType.name() : null,
+            "emoji", reactionType != null ? reactionType.getEmoji() : null,
+            "displayName", reactionType != null ? reactionType.getDisplayName() : null
+        )));
+    }
+
+    @Operation(summary = "Get Facebook-style post data", description = "Get post with complete Facebook-style reaction and engagement data")
+    @GetMapping("/{postId}/facebook-style")
+    public ResponseEntity<WrapRes<com.nhom4.xoxo.dto.res.FacebookStylePostResponse>> getFacebookStylePost(@PathVariable Long postId) {
+        // Get basic post data
+        PostItemResponse post = postService.getPostItemById(postId).orElse(null);
+        if (post == null) {
+            return ResponseEntity.ok(WrapRes.error("Post not found"));
+        }
+        
+        // Get media
+        List<Media> media = postService.getPostMedia(postId);
+        List<MediaResponse> mediaResponses = media.stream()
+            .map(this::mapToMediaResponse)
+            .toList();
+        
+        // Get reaction stats
+        var reactionStats = postReactionService.getReactionStats(postId);
+        long totalReactions = postReactionService.getTotalReactionCount(postId);
+        
+        // Get user's interaction
+        Long userId = getCurrentUser().getId();
+        var userReaction = postReactionService.getUserReactionType(postId, userId);
+        
+        // Create Facebook-style summary
+        StringBuilder reactionSummary = new StringBuilder();
+        var topReactions = reactionStats.entrySet().stream()
+            .sorted(Map.Entry.<com.nhom4.xoxo.enums.PostReactionType, Long>comparingByValue().reversed())
+            .limit(3)
+            .collect(java.util.stream.Collectors.toList());
+        
+        topReactions.forEach(entry -> {
+            if (reactionSummary.length() > 0) reactionSummary.append(", ");
+            reactionSummary.append(entry.getKey().getEmoji()).append(" ").append(entry.getValue());
+        });
+        
+        // Build response
+        var response = com.nhom4.xoxo.dto.res.FacebookStylePostResponse.builder()
+            .id(post.id())
+            .content(post.content())
+            .author(UserResponse.builder()
+                .id(post.authorId())
+                .firstName(post.authorFirstName())
+                .lastName(post.authorLastName())
+                .avatarUrl(post.authorAvatarUrl())
+                .build())
+            .createdAt(post.createdAt())
+            .updatedAt(post.updatedAt())
+            .media(mediaResponses)
+            .engagement(com.nhom4.xoxo.dto.res.FacebookStylePostResponse.EngagementData.builder()
+                .totalReactions((int) totalReactions)
+                .reactionBreakdown(reactionStats)
+                .reactionSummary(reactionSummary.toString())
+                .commentCount(post.commentCount())
+                .shareCount(post.shareCount())
+                .viewCount(post.viewCount())
+                .build())
+            .userInteraction(com.nhom4.xoxo.dto.res.FacebookStylePostResponse.UserInteraction.builder()
+                .userReaction(userReaction)
+                .hasLiked(userReaction == com.nhom4.xoxo.enums.PostReactionType.LIKE)
+                .hasCommented(checkUserHasCommented(postId, userId))
+                .hasShared(checkUserHasShared(postId, userId))
+                .hasViewed(true) // Assume viewed since they're requesting it
+                .build())
+            .build();
+        
+        return ResponseEntity.ok(WrapRes.success(response));
+    }
+
+    private User getCurrentUser() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        String email = authentication.getName();
+        return userService.findByEmail(email);
+    }
+
+    private boolean checkUserHasCommented(Long postId, Long userId) {
+        try {
+            // Check if user has any comments on this post
+            var comments = postService.getCommentsOfPost(postId);
+            return comments.stream().anyMatch(comment -> comment.authorId().equals(userId));
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    private boolean checkUserHasShared(Long postId, Long userId) {
+        try {
+            // Check if user has shared this post
+            var shares = postService.getSharesOfPost(postId);
+            return shares.stream().anyMatch(share -> share.sharerId().equals(userId));
+        } catch (Exception e) {
+            return false;
+        }
     }
 } 

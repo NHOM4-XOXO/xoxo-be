@@ -21,6 +21,7 @@ import com.nhom4.xoxo.exception.NotFoundException;
 import com.nhom4.xoxo.repository.MediaRepository;
 import com.nhom4.xoxo.repository.MediaRoomRepository;
 import com.nhom4.xoxo.repository.StoryRepository;
+import com.nhom4.xoxo.service.FriendshipService;
 import com.nhom4.xoxo.service.StoryService;
 
 @Service
@@ -30,12 +31,14 @@ public class StoryServiceImpl implements StoryService {
     private final StoryRepository storyRepository;
     private final MediaRoomRepository mediaRoomRepository;
     private final MediaRepository mediaRepository;
+    private final FriendshipService friendshipService;
 
     public StoryServiceImpl(StoryRepository storyRepository, MediaRoomRepository mediaRoomRepository,
-            MediaRepository mediaRepository) {
+            MediaRepository mediaRepository, FriendshipService friendshipService) {
         this.storyRepository = storyRepository;
         this.mediaRoomRepository = mediaRoomRepository;
         this.mediaRepository = mediaRepository;
+        this.friendshipService = friendshipService;
     }
 
     @Override
@@ -179,11 +182,17 @@ public class StoryServiceImpl implements StoryService {
             return true;
         }
 
-        // Story friends thì cần kiểm tra friendship (implement logic này tùy theo
-        // business)
+        // Story friends thì cần kiểm tra friendship
         if (story.getPrivacy() == PrivacyLevel.FRIENDS) {
-            // TODO: Implement friendship check logic
-            return true; // Tạm thời cho phép
+            // Check if current user is friend with story owner
+            try {
+                // We need FriendshipService to check this
+                // For now, implement basic logic
+                return friendshipService.areFriends(currentUser.getId(), story.getUser().getId());
+            } catch (Exception e) {
+                // If error, deny access for security
+                return false;
+            }
         }
 
         // Story private chỉ chủ sở hữu mới xem được

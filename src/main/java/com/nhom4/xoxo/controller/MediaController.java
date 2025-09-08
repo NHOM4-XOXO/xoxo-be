@@ -161,7 +161,7 @@ public class MediaController {
         
         return MediaResponse.builder()
             .id(media.getId())
-            .mediaUrl(cloudinaryService.buildCloudinaryUrl(media.getMediaUrl()))
+            .mediaUrl(cloudinaryService.buildCloudinaryUrl(media.getMediaUrl(), media.getMediaType()))
             .mediaType(media.getMediaType())
             .originalFilename(media.getOriginalFilename())
             .fileSize(media.getFileSize())

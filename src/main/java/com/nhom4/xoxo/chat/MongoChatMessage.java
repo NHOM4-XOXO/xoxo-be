@@ -37,14 +37,37 @@ public class MongoChatMessage {
     @Indexed
     private Instant sentAt = Instant.now();
     
+    // Message Status - Messenger-like
     private boolean delivered = false;
     private boolean read = false;
     private Instant deliveredAt;
     private Instant readAt;
     private boolean deleted = false;
+    private boolean edited = false;
+    private Instant editedAt;
     
     // Metadata
     private String senderName;
     private String senderAvatar;
     private Long messageId; // Reference to MySQL message
+    
+    // Messenger-like features
+    private java.util.Map<String, Integer> reactions; // reaction -> count
+    private java.util.List<String> mentionedUserIds; // @mentions
+    private java.util.Map<String, Object> attachments; // files, images, etc.
+    private String threadId; // for message threads
+    private boolean forwarded = false;
+    private String originalMessageId; // if forwarded
+    
+    // Read receipts - who read this message
+    private java.util.Map<String, Instant> readBy; // userId -> readTime
+    private java.util.Map<String, Instant> deliveredTo; // userId -> deliveryTime
+    
+    // Message priority and importance
+    private boolean important = false;
+    private boolean pinned = false;
+    
+    // Search optimization
+    @org.springframework.data.mongodb.core.index.TextIndexed
+    private String searchableContent;
 }
