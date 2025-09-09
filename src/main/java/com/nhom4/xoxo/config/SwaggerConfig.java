@@ -34,8 +34,7 @@ public class SwaggerConfig {
                                 // .servers(List.of(
                                 //                 new Server().url("https://localhost:8443")
                                 //                                 .description("Development Server"),
-                                //                 new Server().url("https://xoxo.id.vn:443")
-                                //                                 .description("Production Server"),
+                                              
 
                                 //                 new Server().url("https://xoxo.id.vn")
                                 //                                 .description("Production Server")))

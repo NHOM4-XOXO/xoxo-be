@@ -1,8 +1,6 @@
 services:
   app:
-    image: nguyenthanhtai1604/xoxo_web_service:latest
-    container_name: xoxo_web_service
-    restart: always
+    image: nguyenthanhtai1604/xoxo_web_service:${IMAGE_TAG:-latest}
     ports:
       - "8080:8080"
     env_file:
