@@ -31,14 +31,14 @@ public class SwaggerConfig {
                                                 .license(new License()
                                                                 .name("MIT License")
                                                                 .url("https://opensource.org/licenses/MIT")))
-                                .servers(List.of(
-                                                new Server().url("https://localhost:8443")
-                                                                .description("Development Server"),
-                                                new Server().url("https://xoxo.id.vn:443")
-                                                                .description("Production Server"),
+                                // .servers(List.of(
+                                //                 new Server().url("https://localhost:8443")
+                                //                                 .description("Development Server"),
+                                //                 new Server().url("https://xoxo.id.vn:443")
+                                //                                 .description("Production Server"),
 
-                                                new Server().url("https://xoxo.id.vn")
-                                                                .description("Production Server")))
+                                //                 new Server().url("https://xoxo.id.vn")
+                                //                                 .description("Production Server")))
                                 .addSecurityItem(new SecurityRequirement().addList("Bearer Authentication"))
                                 .components(new Components()
                                                 .addSecuritySchemes("Bearer Authentication", new SecurityScheme()
