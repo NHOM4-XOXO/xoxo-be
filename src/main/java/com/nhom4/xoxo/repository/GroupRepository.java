@@ -23,6 +23,49 @@ public interface GroupRepository extends JpaRepository<Group, Long> {
     
     @Query("SELECT g FROM Group g WHERE g.title LIKE %:title%")
     Page<Group> findByTitle(String title, Pageable pageable);
+    
+    // Enhanced search methods - FIXED với JOIN FETCH để tránh LazyInitializationException
+    @Query("SELECT g FROM Group g JOIN FETCH g.creator c WHERE " +
+           "LOWER(g.title) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
+           "LOWER(g.description) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
+           "LOWER(g.tags) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
+           "LOWER(g.location) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
+           "LOWER(c.firstName) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
+           "LOWER(c.lastName) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
+           "LOWER(c.username) LIKE LOWER(CONCAT('%', :keyword, '%'))")
+    List<Group> searchGroups(@Param("keyword") String keyword);
+    
+    @Query("SELECT g FROM Group g JOIN FETCH g.creator c WHERE " +
+           "LOWER(g.title) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
+           "LOWER(g.description) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
+           "LOWER(g.tags) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
+           "LOWER(g.location) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
+           "LOWER(c.firstName) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
+           "LOWER(c.lastName) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
+           "LOWER(c.username) LIKE LOWER(CONCAT('%', :keyword, '%'))")
+    Page<Group> searchGroupsPageable(@Param("keyword") String keyword, Pageable pageable);
+    
+    @Query("SELECT g FROM Group g JOIN FETCH g.creator c WHERE " +
+           "(LOWER(g.title) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
+           "LOWER(g.description) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
+           "LOWER(g.tags) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
+           "LOWER(g.location) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
+           "LOWER(c.firstName) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
+           "LOWER(c.lastName) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
+           "LOWER(c.username) LIKE LOWER(CONCAT('%', :keyword, '%'))) AND " +
+           "g.status = com.nhom4.xoxo.enums.GroupStatus.ACTIVE")
+    List<Group> searchActiveGroups(@Param("keyword") String keyword);
+    
+    @Query("SELECT g FROM Group g JOIN FETCH g.creator c WHERE " +
+           "(LOWER(g.title) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
+           "LOWER(g.description) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
+           "LOWER(g.tags) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
+           "LOWER(g.location) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
+           "LOWER(c.firstName) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
+           "LOWER(c.lastName) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
+           "LOWER(c.username) LIKE LOWER(CONCAT('%', :keyword, '%'))) AND " +
+           "g.status = com.nhom4.xoxo.enums.GroupStatus.ACTIVE")
+    Page<Group> searchActiveGroupsPageable(@Param("keyword") String keyword, Pageable pageable);
 
     // Enhanced queries for Facebook-like features
     @Query("SELECT g FROM Group g JOIN GroupMember gm ON g.id = gm.group.id " +

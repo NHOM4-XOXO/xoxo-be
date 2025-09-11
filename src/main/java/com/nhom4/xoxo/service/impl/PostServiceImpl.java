@@ -13,6 +13,7 @@ import com.nhom4.xoxo.dto.res.PostItemResponse;
 import com.nhom4.xoxo.dto.res.PostWithMediaResponse;
 import com.nhom4.xoxo.dto.res.SharePostItemResponse;
 import com.nhom4.xoxo.dto.res.UserLikeResponse;
+import com.nhom4.xoxo.dto.res.UserResponse;
 import com.nhom4.xoxo.entity.Comment;
 import com.nhom4.xoxo.entity.Media;
 import com.nhom4.xoxo.entity.MediaRoom;
@@ -94,10 +95,10 @@ public class PostServiceImpl implements PostService {
                         .post(p)
                         .media(getPostMedia(p.id()).stream()
                                 .map(m -> {
-                                    com.nhom4.xoxo.dto.res.UserResponse uploadedBy;
+                                    UserResponse uploadedBy;
                                     if (m.getUploadedBy() != null) {
                                         var u = m.getUploadedBy();
-                                        uploadedBy = com.nhom4.xoxo.dto.res.UserResponse.builder()
+                                        uploadedBy = UserResponse.builder()
                                                 .id(u.getId())
                                                 .email(u.getEmail())
                                                 .firstName(u.getFirstName())
@@ -114,7 +115,7 @@ public class PostServiceImpl implements PostService {
                                                 .username(u.getUsername())
                                                 .build();
                                     } else {
-                                        uploadedBy = com.nhom4.xoxo.dto.res.UserResponse.builder()
+                                        uploadedBy = UserResponse.builder()
                                                 .id(p.authorId())
                                                 .firstName(p.authorFirstName())
                                                 .lastName(p.authorLastName())
@@ -396,10 +397,10 @@ public class PostServiceImpl implements PostService {
                         .post(p)
                         .media(getPostMedia(p.id()).stream()
                                 .map(m -> {
-                                    com.nhom4.xoxo.dto.res.UserResponse uploadedBy;
+                                    UserResponse uploadedBy;
                                     if (m.getUploadedBy() != null) {
                                         var u = m.getUploadedBy();
-                                        uploadedBy = com.nhom4.xoxo.dto.res.UserResponse.builder()
+                                        uploadedBy = UserResponse.builder()
                                                 .id(u.getId())
                                                 .email(u.getEmail())
                                                 .firstName(u.getFirstName())
@@ -416,7 +417,7 @@ public class PostServiceImpl implements PostService {
                                                 .username(u.getUsername())
                                                 .build();
                                     } else {
-                                        uploadedBy = com.nhom4.xoxo.dto.res.UserResponse.builder()
+                                        uploadedBy = UserResponse.builder()
                                                 .id(p.authorId())
                                                 .firstName(p.authorFirstName())
                                                 .lastName(p.authorLastName())
@@ -448,10 +449,10 @@ public class PostServiceImpl implements PostService {
                         .post(p)
                         .media(getPostMedia(p.id()).stream()
                                 .map(m -> {
-                                    com.nhom4.xoxo.dto.res.UserResponse uploadedBy;
+                                    UserResponse uploadedBy;
                                     if (m.getUploadedBy() != null) {
                                         var u = m.getUploadedBy();
-                                        uploadedBy = com.nhom4.xoxo.dto.res.UserResponse.builder()
+                                        uploadedBy = UserResponse.builder()
                                                 .id(u.getId())
                                                 .email(u.getEmail())
                                                 .firstName(u.getFirstName())
@@ -468,7 +469,7 @@ public class PostServiceImpl implements PostService {
                                                 .username(u.getUsername())
                                                 .build();
                                     } else {
-                                        uploadedBy = com.nhom4.xoxo.dto.res.UserResponse.builder()
+                                        uploadedBy = UserResponse.builder()
                                                 .id(p.authorId())
                                                 .firstName(p.authorFirstName())
                                                 .lastName(p.authorLastName())
@@ -532,10 +533,10 @@ public class PostServiceImpl implements PostService {
                         .post(p)
                         .media(getPostMedia(p.id()).stream()
                                 .map(m -> {
-                                    com.nhom4.xoxo.dto.res.UserResponse uploadedBy;
+                                    UserResponse uploadedBy;
                                     if (m.getUploadedBy() != null) {
                                         var u = m.getUploadedBy();
-                                        uploadedBy = com.nhom4.xoxo.dto.res.UserResponse.builder()
+                                        uploadedBy = UserResponse.builder()
                                                 .id(u.getId())
                                                 .email(u.getEmail())
                                                 .firstName(u.getFirstName())
@@ -552,7 +553,7 @@ public class PostServiceImpl implements PostService {
                                                 .username(u.getUsername())
                                                 .build();
                                     } else {
-                                        uploadedBy = com.nhom4.xoxo.dto.res.UserResponse.builder()
+                                        uploadedBy = UserResponse.builder()
                                                 .id(p.authorId())
                                                 .firstName(p.authorFirstName())
                                                 .lastName(p.authorLastName())

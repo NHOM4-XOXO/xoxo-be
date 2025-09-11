@@ -25,10 +25,13 @@ import org.springframework.web.multipart.MultipartFile;
 import com.nhom4.xoxo.dto.WrapRes;
 import com.nhom4.xoxo.service.NotificationService;
 import com.nhom4.xoxo.dto.req.UpdateUserRequest;
+import com.nhom4.xoxo.dto.res.SearchResultResponse;
 import com.nhom4.xoxo.dto.res.UserResponse;
 import com.nhom4.xoxo.entity.Notification;
 import com.nhom4.xoxo.entity.User;
+
 import com.nhom4.xoxo.service.CloudinaryService;
+import com.nhom4.xoxo.service.SearchService;
 import com.nhom4.xoxo.service.UserService;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -45,6 +48,7 @@ public class UserController {
     private final CloudinaryService cloudinaryService;
     private final ModelMapper modelMapper;
     private final NotificationService notificationService;
+    private final SearchService searchService;
 
     @Operation(summary = "Lấy thông tin cá nhân của user hiện tại", description = "Yêu cầu đã đăng nhập. Trả về thông tin user.", responses = {
             @ApiResponse(responseCode = "200", description = "Lấy thông tin user thành công")
@@ -120,7 +124,7 @@ public class UserController {
         Optional<User> user = userService.findByUsername(username);
         if (user.isPresent()) {
             UserResponse userResponse = modelMapper.map(user.get(), UserResponse.class);
-            userResponse.setAvatarUrl(cloudinaryService.buildCloudinaryUrl(user.get().getAvatarUrl(), com.nhom4.xoxo.enums.MediaType.IMAGE));
+            userResponse.setAvatarUrl(cloudinaryService.buildCloudinaryUrl(user.get().getAvatarUrl(),com.nhom4.xoxo.enums.MediaType.IMAGE));
             userResponse.setCoverUrl(cloudinaryService.buildCloudinaryUrl(user.get().getCoverUrl(), com.nhom4.xoxo.enums.MediaType.IMAGE));
             return ResponseEntity.ok(WrapRes.success(userResponse));
         }
@@ -211,5 +215,63 @@ public class UserController {
             Principal principal) {
         notificationService.deleteNotification(id);
         return ResponseEntity.ok(WrapRes.success("Notification deleted successfully"));
+    }
+
+    // ==================== SEARCH ENDPOINTS ====================
+
+    @Operation(summary = "Tìm kiếm tổng hợp", description = "Tìm kiếm trong tất cả User, Post, Group với từ khóa", responses = {
+            @ApiResponse(responseCode = "200", description = "Tìm kiếm thành công")
+    })
+    @GetMapping("/search")
+    public ResponseEntity<WrapRes<SearchResultResponse>> searchAll(
+            @RequestParam String keyword,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        
+        Pageable pageable = PageRequest.of(page, size);
+        SearchResultResponse result = searchService.searchAll(keyword, pageable);
+        return ResponseEntity.ok(WrapRes.success(result));
+    }
+
+    @Operation(summary = "Tìm kiếm users", description = "Tìm kiếm users theo từ khóa", responses = {
+            @ApiResponse(responseCode = "200", description = "Tìm kiếm users thành công")
+    })
+    @GetMapping("/search/users")
+    public ResponseEntity<WrapRes<SearchResultResponse>> searchUsers(
+            @RequestParam String keyword,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        
+        Pageable pageable = PageRequest.of(page, size);
+        SearchResultResponse result = searchService.searchUsers(keyword, pageable);
+        return ResponseEntity.ok(WrapRes.success(result));
+    }
+
+    @Operation(summary = "Tìm kiếm posts", description = "Tìm kiếm posts theo từ khóa", responses = {
+            @ApiResponse(responseCode = "200", description = "Tìm kiếm posts thành công")
+    })
+    @GetMapping("/search/posts")
+    public ResponseEntity<WrapRes<SearchResultResponse>> searchPosts(
+            @RequestParam String keyword,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        
+        Pageable pageable = PageRequest.of(page, size);
+        SearchResultResponse result = searchService.searchPosts(keyword, pageable);
+        return ResponseEntity.ok(WrapRes.success(result));
+    }
+
+    @Operation(summary = "Tìm kiếm groups", description = "Tìm kiếm groups theo từ khóa", responses = {
+            @ApiResponse(responseCode = "200", description = "Tìm kiếm groups thành công")
+    })
+    @GetMapping("/search/groups")
+    public ResponseEntity<WrapRes<SearchResultResponse>> searchGroups(
+            @RequestParam String keyword,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        
+        Pageable pageable = PageRequest.of(page, size);
+        SearchResultResponse result = searchService.searchGroups(keyword, pageable);
+        return ResponseEntity.ok(WrapRes.success(result));
     }
 }

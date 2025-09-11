@@ -1,5 +1,7 @@
 package com.nhom4.xoxo.service;
 
+import com.nhom4.xoxo.entity.Notification;
+import com.nhom4.xoxo.entity.NotificationType;
 import com.nhom4.xoxo.entity.Post;
 import com.nhom4.xoxo.entity.User;
 import com.nhom4.xoxo.enums.PostReactionType;
@@ -47,10 +49,10 @@ public class PostReactionNotificationService {
                 String notificationMessage = reactor.getFirstName() + " " + reactor.getLastName() + 
                     " đã " + reactionType.getDisplayName().toLowerCase() + " bài viết của bạn";
                 
-                com.nhom4.xoxo.entity.Notification notification = com.nhom4.xoxo.entity.Notification.builder()
+                Notification notification = Notification.builder()
                     .userId(post.getAuthor().getId())
                     .senderId(reactor.getId())
-                    .type(com.nhom4.xoxo.entity.NotificationType.POST_LIKE) // Reuse existing type
+                    .type(NotificationType.POST_LIKE) 
                     .targetType("POST")
                     .targetId(post.getId())
                     .actionType("REACTION")

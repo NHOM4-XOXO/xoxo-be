@@ -11,7 +11,9 @@ import com.nhom4.xoxo.dto.req.ReportRequest;
 import com.nhom4.xoxo.dto.res.ReportResponse;
 import com.nhom4.xoxo.entity.Report;
 import com.nhom4.xoxo.entity.User;
+import com.nhom4.xoxo.enums.ReportReason;
 import com.nhom4.xoxo.enums.ReportStatus;
+import com.nhom4.xoxo.enums.ReportTargetType;
 import com.nhom4.xoxo.exception.NotFoundException;
 import com.nhom4.xoxo.exception.ServiceException;
 import com.nhom4.xoxo.repository.ReportRepository;
@@ -60,7 +62,7 @@ public class ReportServiceImpl implements ReportService {
                 .orElseThrow(() -> new NotFoundException("Report not found"));
 
         // Only allow updates if report is still PENDING
-        if (report.getStatus() != com.nhom4.xoxo.enums.ReportStatus.PENDING) {
+        if (report.getStatus() != ReportStatus.PENDING) {
             throw new ServiceException("Cannot update report that has already been reviewed");
         }
 
@@ -125,13 +127,13 @@ public class ReportServiceImpl implements ReportService {
     }
 
     @Override
-    public Page<ReportResponse> getReportsByTarget(com.nhom4.xoxo.enums.ReportTargetType targetType, Long targetId, Pageable pageable) {
+    public Page<ReportResponse> getReportsByTarget(ReportTargetType targetType, Long targetId, Pageable pageable) {
         return reportRepository.findByReportTargetTypeAndReportTargetIdOrderByCreatedAtDesc(targetType, targetId, pageable)
                 .map(this::toReportResponse);
     }
 
     @Override
-    public Page<ReportResponse> getReportsByReason(com.nhom4.xoxo.enums.ReportReason reason, Pageable pageable) {
+    public Page<ReportResponse> getReportsByReason(ReportReason reason, Pageable pageable) {
         return reportRepository.findByReportReasonOrderByCreatedAtDesc(reason, pageable)
                 .map(this::toReportResponse);
     }
@@ -144,7 +146,7 @@ public class ReportServiceImpl implements ReportService {
 
     // Admin operations
     @Override
-    public ReportResponse reviewReport(Long reportId, com.nhom4.xoxo.enums.ReportStatus status, String adminNotes, Integer priority, Long adminId) {
+    public ReportResponse reviewReport(Long reportId, ReportStatus status, String adminNotes, Integer priority, Long adminId) {
         Report report = reportRepository.findById(reportId)
                 .orElseThrow(() -> new NotFoundException("Report not found"));
 
@@ -168,9 +170,9 @@ public class ReportServiceImpl implements ReportService {
         long totalReports = reportRepository.count();
         
         // Count by status
-        long pendingReports = reportRepository.countByStatus(com.nhom4.xoxo.enums.ReportStatus.PENDING);
-        long resolvedReports = reportRepository.countByStatus(com.nhom4.xoxo.enums.ReportStatus.RESOLVED);
-        long rejectedReports = reportRepository.countByStatus(com.nhom4.xoxo.enums.ReportStatus.REJECTED);
+        long pendingReports = reportRepository.countByStatus(ReportStatus.PENDING);
+        long resolvedReports = reportRepository.countByStatus(ReportStatus.RESOLVED);
+        long rejectedReports = reportRepository.countByStatus(ReportStatus.REJECTED);
         
         // Aggregate by target type
         java.util.Map<String, Integer> reportsByType = new java.util.HashMap<>();
@@ -191,9 +193,9 @@ public class ReportServiceImpl implements ReportService {
             "PENDING", (int) pendingReports,
             "RESOLVED", (int) resolvedReports,
             "REJECTED", (int) rejectedReports,
-            "IN_PROGRESS", (int) reportRepository.countByStatus(com.nhom4.xoxo.enums.ReportStatus.IN_PROGRESS),
-            "CLOSED", (int) reportRepository.countByStatus(com.nhom4.xoxo.enums.ReportStatus.CLOSED),
-            "ESCALATED", (int) reportRepository.countByStatus(com.nhom4.xoxo.enums.ReportStatus.ESCALATED)
+            "IN_PROGRESS", (int) reportRepository.countByStatus(ReportStatus.IN_PROGRESS),
+            "CLOSED", (int) reportRepository.countByStatus(ReportStatus.CLOSED),
+            "ESCALATED", (int) reportRepository.countByStatus(ReportStatus.ESCALATED)
         );
         
         // Aggregate by priority

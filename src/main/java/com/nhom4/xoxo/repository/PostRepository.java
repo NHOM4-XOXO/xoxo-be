@@ -212,4 +212,31 @@ public interface PostRepository extends JpaRepository<Post, Long> {
   // tránh lazy issues
   @Query("SELECT m FROM MediaRoom mr JOIN mr.media m LEFT JOIN FETCH m.uploadedBy WHERE mr.targetId = :postId AND mr.targetType = com.nhom4.xoxo.enums.MediaRoomTargetType.POST")
   List<Media> findMediaByPostId(@Param("postId") Long postId);
+  
+  // Search methods
+  @Query("SELECT p FROM Post p WHERE " +
+         "LOWER(p.content) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
+         "LOWER(p.hashtags) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
+         "LOWER(p.location) LIKE LOWER(CONCAT('%', :keyword, '%'))")
+  List<Post> searchPosts(@Param("keyword") String keyword);
+  
+  @Query("SELECT p FROM Post p WHERE " +
+         "LOWER(p.content) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
+         "LOWER(p.hashtags) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
+         "LOWER(p.location) LIKE LOWER(CONCAT('%', :keyword, '%'))")
+  Page<Post> searchPostsPageable(@Param("keyword") String keyword, Pageable pageable);
+  
+  @Query("SELECT p FROM Post p WHERE " +
+         "(LOWER(p.content) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
+         "LOWER(p.hashtags) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
+         "LOWER(p.location) LIKE LOWER(CONCAT('%', :keyword, '%'))) AND " +
+         "p.isPublic = true AND p.status = com.nhom4.xoxo.enums.PostStatus.ACTIVE")
+  List<Post> searchPublicPosts(@Param("keyword") String keyword);
+  
+  @Query("SELECT p FROM Post p JOIN FETCH p.author a WHERE " +
+         "(LOWER(p.content) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
+         "LOWER(p.hashtags) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
+         "LOWER(p.location) LIKE LOWER(CONCAT('%', :keyword, '%'))) AND " +
+         "p.isPublic = true AND p.status = com.nhom4.xoxo.enums.PostStatus.ACTIVE")
+  Page<Post> searchPublicPostsPageable(@Param("keyword") String keyword, Pageable pageable);
 }

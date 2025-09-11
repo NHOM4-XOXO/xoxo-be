@@ -265,7 +265,7 @@ public class EnhancedChatServiceImpl implements EnhancedChatService {
             String kB64 = payload.get("k");
             byte[] keyBytes = Base64.getDecoder().decode(kB64);
             javax.crypto.SecretKey aesKey = new javax.crypto.spec.SecretKeySpec(keyBytes, "AES");
-            var em = new com.nhom4.xoxo.security.EncryptionService.EncryptedMessage();
+            var em = new EncryptionService.EncryptedMessage();
             em.setIv(iv);
             em.setEncryptedData(data);
             return encryptionService.decryptMessage(em, aesKey);

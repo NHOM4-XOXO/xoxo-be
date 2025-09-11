@@ -269,6 +269,7 @@ public class PostReactionServiceImpl implements PostReactionService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new NotFoundException("User not found"));
         
+                
         return postReactionRepository.existsByPostAndUser(post, user);
     }
 

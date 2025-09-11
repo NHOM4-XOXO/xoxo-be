@@ -2,12 +2,17 @@ package com.nhom4.xoxo.service.impl;
 
 import com.nhom4.xoxo.dto.req.CreateGroupRequest;
 import com.nhom4.xoxo.dto.req.UpdateGroupRequest;
+import com.nhom4.xoxo.dto.res.GroupAnalyticsResponse;
 import com.nhom4.xoxo.dto.res.GroupResponse;
 import com.nhom4.xoxo.entity.Group;
 import com.nhom4.xoxo.entity.GroupMember;
 import com.nhom4.xoxo.entity.Report;
 import com.nhom4.xoxo.entity.User;
 import com.nhom4.xoxo.enums.GroupMemberStatus;
+import com.nhom4.xoxo.enums.GroupStatus;
+import com.nhom4.xoxo.enums.ReportReason;
+import com.nhom4.xoxo.enums.ReportStatus;
+import com.nhom4.xoxo.enums.ReportTargetType;
 import com.nhom4.xoxo.exception.ForbiddenException;
 import com.nhom4.xoxo.exception.NotFoundException;
 import com.nhom4.xoxo.repository.GroupMemberRepository;
@@ -188,17 +193,16 @@ public class GroupServiceImpl implements GroupService {
         // Create report entity
         Report report = Report.builder()
                 .reporter(reporter)
-                .reportTargetType(com.nhom4.xoxo.enums.ReportTargetType.GROUP)
+                .reportTargetType(ReportTargetType.GROUP)
                 .reportTargetId(groupId)
-                .reportReason(com.nhom4.xoxo.enums.ReportReason.valueOf(reason.toUpperCase()))
+                .reportReason(ReportReason.valueOf(reason.toUpperCase()))
                 .additionalInfo(additionalInfo)
-                .status(com.nhom4.xoxo.enums.ReportStatus.PENDING)
+                .status(ReportStatus.PENDING)
                 .priority(1) // Default priority
                 .isAnonymous(false)
                 .build();
         
-        // Save through repository (would need ReportRepository injected)
-        // For now, we'll assume this is handled by a separate ReportService
+   
     }
 
     // Admin operations
@@ -210,7 +214,7 @@ public class GroupServiceImpl implements GroupService {
     }
 
     @Override
-    public GroupResponse updateGroupStatus(Long groupId, com.nhom4.xoxo.enums.GroupStatus status, String adminNotes, Long adminId) {
+    public GroupResponse updateGroupStatus(Long groupId, GroupStatus status, String adminNotes, Long adminId) {
         Group group = groupRepository.findById(groupId)
                 .orElseThrow(() -> new NotFoundException("Group not found with id: " + groupId));
         
@@ -230,7 +234,7 @@ public class GroupServiceImpl implements GroupService {
     }
 
     @Override
-    public com.nhom4.xoxo.dto.res.GroupAnalyticsResponse getGroupAnalytics(Long groupId) {
+    public GroupAnalyticsResponse getGroupAnalytics(Long groupId) {
         Group group = groupRepository.findById(groupId)
                 .orElseThrow(() -> new NotFoundException("Group not found with id: " + groupId));
         
@@ -266,7 +270,7 @@ public class GroupServiceImpl implements GroupService {
             "Sunday", 10
         );
         
-        return com.nhom4.xoxo.dto.res.GroupAnalyticsResponse.builder()
+        return GroupAnalyticsResponse.builder()
                 .groupId(groupId)
                 .groupName(group.getTitle())
                 .totalMembers(actualMemberCount)

@@ -35,6 +35,7 @@ public class RateLimitingFilter extends OncePerRequestFilter {
     private static final int MAX_REQUESTS_PER_MINUTE = 60;
     private static final int MAX_LOGIN_ATTEMPTS_PER_HOUR = 10;
     private static final int MAX_REPORT_REQUESTS_PER_HOUR = 10;
+    private static final int MAX_SEARCH_REQUESTS_PER_MINUTE = 30;
     
     public RateLimitingFilter(@Qualifier("stringStringRedisTemplate") RedisTemplate<String, String> redisTemplate, ObjectMapper objectMapper) {
         this.redisTemplate = redisTemplate;
@@ -67,7 +68,8 @@ public class RateLimitingFilter extends OncePerRequestFilter {
         return path.startsWith("/api/auth/login") ||
                path.startsWith("/api/auth/register") ||
                path.startsWith("/api/v1/reports") ||
-               path.startsWith("/api/admin/");
+               path.startsWith("/api/admin/") ||
+               path.startsWith("/api/user/search");
     }
     
     private RateLimitConfig getRateLimitConfig(String path, String method) {
@@ -75,6 +77,8 @@ public class RateLimitingFilter extends OncePerRequestFilter {
             return new RateLimitConfig(MAX_LOGIN_ATTEMPTS_PER_HOUR, Duration.ofHours(1));
         } else if (path.startsWith("/api/v1/reports") && "POST".equals(method)) {
             return new RateLimitConfig(MAX_REPORT_REQUESTS_PER_HOUR, Duration.ofHours(1));
+        } else if (path.startsWith("/api/user/search")) {
+            return new RateLimitConfig(MAX_SEARCH_REQUESTS_PER_MINUTE, Duration.ofMinutes(1));
         } else {
             return new RateLimitConfig(MAX_REQUESTS_PER_MINUTE, Duration.ofMinutes(1));
         }
