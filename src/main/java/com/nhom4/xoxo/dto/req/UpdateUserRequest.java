@@ -35,6 +35,11 @@ public class UpdateUserRequest {
     @NotNull(message = "Giới tính không được để trống")
     private GenderStatus gender;
 
+    @Size(max = 255)
+    @NotBlank(message = "Bio không được để trống")
+    @Pattern(regexp = "^[\\p{L} ]+$", message = "Bio không được chứa số hoặc ký tự đặc biệt")
+    private String bio;
+
 
  
     
