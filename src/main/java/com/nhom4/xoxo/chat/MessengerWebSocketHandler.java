@@ -1,6 +1,8 @@
 package com.nhom4.xoxo.chat;
 
 import com.nhom4.xoxo.service.MessengerChatService;
+import com.nhom4.xoxo.service.UserService;
+import com.nhom4.xoxo.entity.User;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;
@@ -21,6 +23,7 @@ import java.util.concurrent.ConcurrentMap;
 public class MessengerWebSocketHandler {
 
     private final MessengerChatService messengerChatService;
+    private final UserService userService;
     
     // Track user sessions and subscriptions
     private final ConcurrentMap<String, String> sessionUserMap = new ConcurrentHashMap<>();
@@ -36,13 +39,17 @@ public class MessengerWebSocketHandler {
             String userEmail = user.getName();
             Long userId = extractUserIdFromEmail(userEmail);
             
-            sessionUserMap.put(sessionId, userEmail);
-            userOnlineStatus.put(userEmail, userId);
-            
-            // Update user online status
-            messengerChatService.updateUserOnlineStatus(userId, true);
-            
-            log.info("User connected: {} with session: {}", userEmail, sessionId);
+            if (userId != null) {
+                sessionUserMap.put(sessionId, userEmail);
+                userOnlineStatus.put(userEmail, userId);
+                
+                // Update user online status
+                messengerChatService.updateUserOnlineStatus(userId, true);
+                
+                log.info("User connected: {} with session: {}", userEmail, sessionId);
+            } else {
+                log.warn("Could not extract user ID from email: {}", userEmail);
+            }
         }
     }
 
@@ -159,16 +166,14 @@ public class MessengerWebSocketHandler {
     }
 
     private Long extractUserIdFromEmail(String email) {
-        // This is a simplified extraction - in reality, you'd look up the user
-        // For now, assume email format includes user ID or look up from database
         try {
-            // If email format is "userId@domain.com"
-            if (email.contains("@")) {
-                String[] parts = email.split("@");
-                return Long.parseLong(parts[0]);
+            // Look up user by email from database
+            User user = userService.findByEmail(email);
+            if (user != null) {
+                return user.getId();
             }
-        } catch (NumberFormatException e) {
-            log.warn("Could not extract user ID from email: {}", email);
+        } catch (Exception e) {
+            log.warn("Could not find user by email: {}", email, e);
         }
         return null;
     }
@@ -182,10 +187,3 @@ public class MessengerWebSocketHandler {
         return userOnlineStatus.size();
     }
 }
-
-
-
-
-
-
-
