@@ -20,7 +20,7 @@
       const token = document.getElementById('token').value.trim();
       const roomId = document.getElementById('roomId').value.trim();
       client = new StompJs.Client({
-        brokerURL: 'ws://localhost:8080/ws',
+        brokerURL: 'ws:https://xoxo.id.vn/ws',
         connectHeaders: { Authorization: token },
         debug: (m) => log('[stomp] ' + m),
       });

@@ -51,7 +51,6 @@ public class ChatController {
 
     // WebSocket Message Handlers
     @MessageMapping("/send-message")
-    @SendTo("/topic/chat/{chatRoomId}")
     public ChatMessageResponse handleChatMessage(@Payload ChatMessageRequest request, Principal principal) {
         Long currentUserId = getCurrentUserId(principal);
         log.info("Received chat message from user {} in room {}", currentUserId, request.getChatRoomId());
