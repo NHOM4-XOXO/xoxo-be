@@ -11,6 +11,8 @@ import com.nhom4.xoxo.repository.UserRepository;
 import com.nhom4.xoxo.service.MessengerChatService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.mongodb.core.MongoTemplate;
@@ -28,13 +30,13 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 @Service
-@RequiredArgsConstructor
 @Slf4j
 public class MessengerChatServiceImpl implements MessengerChatService {
 
     private final MongoChatMessageRepository messageRepository;
     private final MongoTemplate mongoTemplate;
     private final RedisTemplate<String, Object> redisTemplate;
+    private final RedisTemplate<String, Object> typingRedisTemplate;
     private final SimpMessagingTemplate messagingTemplate;
     private final UserRepository userRepository;
 
@@ -42,6 +44,20 @@ public class MessengerChatServiceImpl implements MessengerChatService {
     private static final String ONLINE_KEY_PREFIX = "online:";
     private static final int TYPING_TIMEOUT_SECONDS = 10;
 
+    public MessengerChatServiceImpl(
+        MongoChatMessageRepository messageRepository,
+        MongoTemplate mongoTemplate,
+        RedisTemplate<String, Object> redisTemplate,
+        @Qualifier("typingRedisTemplate") RedisTemplate<String, Object> typingRedisTemplate,
+        SimpMessagingTemplate messagingTemplate,
+        UserRepository userRepository) {
+    this.messageRepository = messageRepository;
+    this.mongoTemplate = mongoTemplate;
+    this.redisTemplate=redisTemplate;
+    this.typingRedisTemplate = typingRedisTemplate;
+    this.messagingTemplate = messagingTemplate;
+    this.userRepository = userRepository;
+}
     // ==================== Message Status Management ====================
 
     @Override
@@ -203,7 +219,6 @@ public class MessengerChatServiceImpl implements MessengerChatService {
     }
 
     // ==================== Typing Indicators ====================
-
     @Override
     public void startTyping(Long chatRoomId, Long userId) {
         try {
@@ -217,8 +232,8 @@ public class MessengerChatServiceImpl implements MessengerChatService {
                     "timestamp", Instant.now().toEpochMilli()
                 );
                 
-                redisTemplate.opsForHash().put(key, userId.toString(), typingInfo);
-                redisTemplate.expire(key, TYPING_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+                typingRedisTemplate.opsForHash().put(key, userId.toString(), typingInfo);
+                typingRedisTemplate.expire(key, TYPING_TIMEOUT_SECONDS, TimeUnit.SECONDS);
                 
                 // Notify other participants
                 TypingIndicatorResponse response = getTypingUsers(chatRoomId);
@@ -233,7 +248,7 @@ public class MessengerChatServiceImpl implements MessengerChatService {
     public void stopTyping(Long chatRoomId, Long userId) {
         try {
             String key = TYPING_KEY_PREFIX + chatRoomId;
-            redisTemplate.opsForHash().delete(key, userId.toString());
+            typingRedisTemplate.opsForHash().delete(key, userId.toString());
             
             // Notify other participants
             TypingIndicatorResponse response = getTypingUsers(chatRoomId);
@@ -247,7 +262,7 @@ public class MessengerChatServiceImpl implements MessengerChatService {
     public TypingIndicatorResponse getTypingUsers(Long chatRoomId) {
         try {
             String key = TYPING_KEY_PREFIX + chatRoomId;
-            Map<Object, Object> typingUsers = redisTemplate.opsForHash().entries(key);
+            Map<Object, Object> typingUsers = typingRedisTemplate.opsForHash().entries(key);
             
             List<TypingIndicatorResponse.TypingUser> users = typingUsers.values().stream()
                 .map(obj -> {
