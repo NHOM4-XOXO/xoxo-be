@@ -9,10 +9,11 @@ import org.springframework.stereotype.Component;
 import com.nhom4.xoxo.chat.MongoChatMessage;
 import com.nhom4.xoxo.dto.req.PushNotificationRequest;
 import com.nhom4.xoxo.entity.ChatRoom;
-import com.nhom4.xoxo.entity.User;
+import com.nhom4.xoxo.entity.ChatParticipant;
 import com.nhom4.xoxo.enums.MessageType;
 import com.nhom4.xoxo.exception.NotFoundException;
 import com.nhom4.xoxo.repository.ChatRoomRepository;
+import com.nhom4.xoxo.repository.ChatParticipantRepository;
 import com.nhom4.xoxo.service.PushNotificationService;
 
 import jakarta.transaction.Transactional;
@@ -25,7 +26,7 @@ import lombok.extern.slf4j.Slf4j;
 public class ChatConsumer {
 
     private final ChatRoomRepository chatRoomRepository;
-    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private final ChatParticipantRepository chatParticipantRepository;
     private PushNotificationService pushNotificationService;
 
     @KafkaListener(topics = "chat-messages", groupId = "chat-group")
@@ -37,8 +38,11 @@ public class ChatConsumer {
             ChatRoom room = chatRoomRepository.findById(message.getChatRoomId())
                 .orElseThrow(() -> new NotFoundException("Chat room not found"));
 
-            List<Long> recipients = room.getParticipants().stream()
-                .map(User::getId)
+            // Get active participants using ChatParticipantRepository instead of room.getParticipants()
+            List<ChatParticipant> participants = chatParticipantRepository.findActiveParticipantsByChatRoom(message.getChatRoomId());
+            
+            List<Long> recipients = participants.stream()
+                .map(participant -> participant.getUser().getId())
                 .filter(id -> !id.equals(message.getSenderId()))
                 .collect(Collectors.toList());
 
