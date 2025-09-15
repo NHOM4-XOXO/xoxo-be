@@ -7,12 +7,19 @@
     body { font-family: Arial, sans-serif; max-width: 900px; margin: 24px auto; }
     textarea,input,button { font-size: 14px; }
     .row { margin: 8px 0; }
-    #log { border:1px solid #ccc; padding:8px; height:260px; overflow:auto; background:#fafafa; }
+    #log { border:1px solid #ccc; padding:8px; height:300px; overflow:auto; background:#fafafa; font-family: monospace; font-size: 12px; }
     label { display:inline-block; width:140px; }
+    button { margin: 2px; padding: 4px 8px; }
+    input, textarea { padding: 4px; }
+    .status { padding: 4px 8px; border-radius: 4px; margin: 4px 0; }
+    .status.connected { background: #d4edda; color: #155724; }
+    .status.disconnected { background: #f8d7da; color: #721c24; }
   </style>
 </head>
 <body>
   <h2>Messenger WebSocket/STOMP Test</h2>
+  
+  <div id="status" class="status disconnected">Disconnected</div>
 
   <div class="row">
     <label>WS URL</label>
@@ -20,7 +27,7 @@
   </div>
   <div class="row">
     <label>Authorization</label>
-    <textarea id="token" rows="2" cols="70">Bearer ey...</textarea>
+    <textarea id="token" rows="2" cols="70" placeholder="Bearer eyJhbGciOiJIUzUxMiJ9...">Bearer eyJhbGciOiJIUzUxMiJ9.eyJzdWIiOiJ0dWFubWFpeWV1bmd1b2lkb0BnbWFpbC5jb20iLCJyb2xlcyI6WyJVU0VSIl0sImlhdCI6MTc1NzkwMzMzMywiZXhwIjoxNzU3OTAzOTMzfQ.VeFMwaBSFteih-tOKZ1CeWXpa0W2-HuBtDb2YfaXcrAqMvwsoCTfxCFyjVypTPhdjpO3m33pYGH-0-kZ6cbn2w</textarea>
   </div>
   <div class="row">
     <label>Refresh Token</label>
@@ -28,7 +35,7 @@
   </div>
   <div class="row">
     <label>Room ID</label>
-    <input id="roomId" value="1" size="10"/>
+    <input id="roomId" value="6" size="10"/>
     <button onclick="connect()">Connect</button>
     <button onclick="disconnect()">Disconnect</button>
   </div>
@@ -42,6 +49,10 @@
     <button onclick="subPrivate()">Subscribe Private (/user/queue/private-message)</button>
     <button onclick="unsubPrivate()">Unsubscribe Private</button>
   </div>
+  <div class="row">
+    <button onclick="subTyping()">Subscribe Typing (/topic/chat/{roomId}/typing)</button>
+    <button onclick="unsubTyping()">Unsubscribe Typing</button>
+  </div>
 
   <h3>Send</h3>
   <div class="row">
@@ -50,22 +61,56 @@
     <button onclick="sendText()">Send Text</button>
   </div>
   <div class="row">
+    <button onclick="sendTestMessage()">Send Test Message</button>
+    <button onclick="sendMultipleMessages()">Send 5 Test Messages</button>
+  </div>
+  <div class="row">
     <button onclick="typingStart()">Typing Start</button>
     <button onclick="typingStop()">Typing Stop</button>
   </div>
 
   <h3>Log</h3>
+  <div class="row">
+    <button onclick="clearLog()">Clear Log</button>
+    <button onclick="exportLog()">Export Log</button>
+  </div>
   <pre id="log"></pre>
 
   <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1.6.1/dist/sockjs.min.js"></script>
   <script src="https://unpkg.com/@stomp/stompjs@7.0.0/bundles/stomp.umd.min.js"></script>
   <script>
-    let client, subRoomRef, subPrivateRef;
+    let client, subRoomRef, subPrivateRef, subTypingRef;
     let tokenRefreshInterval;
     let reconnectAttempts = 0;
     const maxReconnectAttempts = 5;
     
-    const log = (m) => { const el = document.getElementById('log'); el.textContent += m + '\n'; el.scrollTop = el.scrollHeight; };
+    const log = (m) => { 
+      const el = document.getElementById('log'); 
+      const timestamp = new Date().toLocaleTimeString();
+      el.textContent += `[${timestamp}] ${m}\n`; 
+      el.scrollTop = el.scrollHeight; 
+    };
+
+    function clearLog() {
+      document.getElementById('log').textContent = '';
+    }
+
+    function exportLog() {
+      const logContent = document.getElementById('log').textContent;
+      const blob = new Blob([logContent], { type: 'text/plain' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `websocket-test-${new Date().toISOString().slice(0, 19)}.txt`;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    function updateStatus(message, connected) {
+      const statusEl = document.getElementById('status');
+      statusEl.textContent = message;
+      statusEl.className = `status ${connected ? 'connected' : 'disconnected'}`;
+    }
 
     function connect() {
       const wsUrl = document.getElementById('wsUrl').value.trim();
@@ -88,13 +133,15 @@
 
       client.onConnect = () => {
         log('Connected.');
+        updateStatus('Connected', true);
         reconnectAttempts = 0; // Reset reconnect attempts on successful connection
         
         // Auto-subscribe to room after connection
         const roomId = document.getElementById('roomId').value.trim();
         if (roomId) {
           subRoomRef = client.subscribe(`/topic/chat/${roomId}`, msg => log('[room] ' + msg.body));
-          log(`Auto-subscribed to room ${roomId}`);
+          subTypingRef = client.subscribe(`/topic/chat/${roomId}/typing`, msg => log('[typing] ' + msg.body));
+          log(`Auto-subscribed to room ${roomId} and typing indicators`);
         }
         
         // Start token refresh timer
@@ -121,8 +168,12 @@
       if (client) {
         try { subRoomRef?.unsubscribe(); } catch {}
         try { subPrivateRef?.unsubscribe(); } catch {}
+        try { subTypingRef?.unsubscribe(); } catch {}
         stopTokenRefresh();
-        client.deactivate().then(() => log('Disconnected.'));
+        client.deactivate().then(() => {
+          log('Disconnected.');
+          updateStatus('Disconnected', false);
+        });
       }
     }
 
@@ -135,6 +186,17 @@
 
     function unsubRoom() {
       try { subRoomRef?.unsubscribe(); log('Unsubscribed room'); } catch (e) { log('Unsub room err: ' + e); }
+    }
+
+    function subTyping() {
+      const roomId = document.getElementById('roomId').value.trim();
+      if (!client?.active) return log('Not connected.');
+      subTypingRef = client.subscribe(`/topic/chat/${roomId}/typing`, msg => log('[typing] ' + msg.body));
+      log(`Subscribed typing indicators for room ${roomId}`);
+    }
+
+    function unsubTyping() {
+      try { subTypingRef?.unsubscribe(); log('Unsubscribed typing'); } catch (e) { log('Unsub typing err: ' + e); }
     }
 
     function subPrivate() {
@@ -170,6 +232,33 @@
       const roomId = Number(document.getElementById('roomId').value.trim());
       client.publish({ destination: '/app/typing/stop', body: JSON.stringify({ chatRoomId: roomId }) });
       log('Typing stop');
+    }
+
+    function sendTestMessage() {
+      if (!client?.active) return log('Not connected.');
+      const roomId = Number(document.getElementById('roomId').value.trim());
+      const testMsg = `Test message at ${new Date().toLocaleTimeString()}`;
+      client.publish({
+        destination: '/app/send-message',
+        body: JSON.stringify({ chatRoomId: roomId, content: testMsg, type: 'TEXT' })
+      });
+      log('Sent test message: ' + testMsg);
+    }
+
+    function sendMultipleMessages() {
+      if (!client?.active) return log('Not connected.');
+      const roomId = Number(document.getElementById('roomId').value.trim());
+      
+      for (let i = 1; i <= 5; i++) {
+        setTimeout(() => {
+          const testMsg = `Test message ${i} at ${new Date().toLocaleTimeString()}`;
+          client.publish({
+            destination: '/app/send-message',
+            body: JSON.stringify({ chatRoomId: roomId, content: testMsg, type: 'TEXT' })
+          });
+          log(`Sent test message ${i}: ${testMsg}`);
+        }, i * 1000); // Send every 1 second
+      }
     }
 
     // Token refresh logic
@@ -275,7 +364,31 @@
       const refreshToken = document.getElementById('refreshToken').value.trim();
       if (token && refreshToken) {
         log('Auto-connecting...');
-        connect();
+        setTimeout(() => {
+          connect();
+        }, 1000); // Delay 1 second to ensure page is fully loaded
+      } else {
+        log('Please enter token and refresh token to auto-connect');
+      }
+    });
+
+    // Add keyboard shortcuts
+    document.addEventListener('keydown', (e) => {
+      if (e.ctrlKey || e.metaKey) {
+        switch(e.key) {
+          case 'Enter':
+            e.preventDefault();
+            if (client?.active) {
+              sendText();
+            } else {
+              connect();
+            }
+            break;
+          case 'c':
+            e.preventDefault();
+            clearLog();
+            break;
+        }
       }
     });
   </script>
