@@ -100,14 +100,11 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
             if (existingUser.isPresent()) {
                 user = existingUser.get();
                 log.info("[OAuth2SuccessHandler] Existing user found: {}", user.getEmail());
-                
-                // Nếu user bị disabled nhưng đăng nhập OAuth2, tự động enable
+              
+                //bi ban khi dang nhap bang oauth2 thi khong cho dang nhap
                 if (!user.isEnabled()) {
-                    log.info("[OAuth2SuccessHandler] Enabling disabled user for OAuth2 login: {}", user.getEmail());
-                    user.setEnabled(true);
-                    user.setUpdatedAt(LocalDateTime.now());
-                    userRepository.save(user);
-                    log.info("[OAuth2SuccessHandler] User enabled successfully: {}", user.getEmail());
+                    log.error("[OAuth2SuccessHandler] User is disabled: {}", user.getEmail());
+                   throw new Exception("Tài khoản của bạn đã bị vô hiệu hóa. Vui lòng liên hệ với admin để được hỗ trợ.");
                 }
                 
                 // Cập nhật thông tin mới từ Google nếu cần
@@ -183,10 +180,11 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
             ResponseCookie cookie = cookieConfig.createRefreshTokenCookie(refreshToken);
             response.addHeader("Set-Cookie", cookie.toString());
             // Redirect về frontend với token
-            String redirectUrl = frontendBaseUrl + "/oauth2/success?token=" + jwt;
-            log.info("[OAuth2SuccessHandler] Redirecting to: {}", redirectUrl);
+            response.setContentType("application/json;charset=UTF-8");
+            response.getWriter().write("{\"token\":\"" + jwt + "\"}");
+            response.getWriter().flush();
             
-            getRedirectStrategy().sendRedirect(request, response, redirectUrl);
+            getRedirectStrategy().sendRedirect(request, response, frontendBaseUrl);
             
         } catch (Exception e) {
             log.error("[OAuth2SuccessHandler] Error during OAuth2 authentication: {}", e.getMessage(), e);
