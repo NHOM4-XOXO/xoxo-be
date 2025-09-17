@@ -76,7 +76,6 @@ public class SecurityConfig {
                         .anyRequest().permitAll())
                 .oauth2Login(oauth2 -> oauth2
                         .loginPage("/login")
-                        .defaultSuccessUrl("/oauth2/success")
                         .successHandler(oAuth2SuccessHandler())
                         .failureUrl("/oauth2/error"))
                 .logout(logout -> logout

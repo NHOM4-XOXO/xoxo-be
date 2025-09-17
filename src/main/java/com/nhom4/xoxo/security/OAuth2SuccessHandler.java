@@ -176,7 +176,7 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
             // Set refreshToken vào HttpOnly cookie
             ResponseCookie cookie = cookieConfig.createRefreshTokenCookie(refreshToken);
             response.addHeader("Set-Cookie", cookie.toString());
-
+            String jwt = jwtTokenProvider.generateToken(authentication);
             // Trả HTML, postMessage access token tới FE và đóng popup
             response.setContentType("text/html;charset=UTF-8");
             String targetOrigin = frontendBaseUrl; // ví dụ: https://xoxo.id.vn
