@@ -1,8 +1,12 @@
 package com.nhom4.xoxo.config;
 
 import lombok.extern.slf4j.Slf4j;
+
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.messaging.simp.config.MessageBrokerRegistry;
+import org.springframework.scheduling.TaskScheduler;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
 import org.springframework.web.socket.config.annotation.EnableWebSocketMessageBroker;
 import org.springframework.web.socket.config.annotation.StompEndpointRegistry;
 import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerConfigurer;
@@ -68,10 +72,10 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
         });
     }
 
-    @org.springframework.context.annotation.Bean
-    public org.springframework.scheduling.TaskScheduler taskScheduler() {
-        org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler scheduler = 
-            new org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler();
+    @Bean
+    public TaskScheduler taskScheduler() {
+        ThreadPoolTaskScheduler scheduler = 
+            new ThreadPoolTaskScheduler();
         scheduler.setPoolSize(10);
         scheduler.setThreadNamePrefix("websocket-");
         scheduler.initialize();

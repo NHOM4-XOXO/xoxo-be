@@ -175,7 +175,7 @@ public class NotificationSyncService {
             Instant cutoffDate = Instant.now().minusSeconds(7776000); // 90 days ago
             
             // MongoDB TTL index sẽ tự động xóa các documents cũ
-            // Nhưng chúng ta có thể thực hiện cleanup thủ công nếu cần
+            //  cleanup thủ công 
             log.info("Cleanup completed. Old notifications will be automatically removed by TTL index");
         } catch (Exception e) {
             log.error("Failed to cleanup old notifications: {}", e.getMessage(), e);

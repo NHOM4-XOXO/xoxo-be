@@ -49,7 +49,7 @@ public interface PostReactionRepository extends JpaRepository<PostReaction, Long
     
     // Top reacted posts
     @Query("SELECT pr.post, COUNT(pr) as reactionCount FROM PostReaction pr " +
-           "WHERE pr.createdAt >= :startDate " +
+    "WHERE pr.createdAt >= :startDate " +
            "GROUP BY pr.post " +
            "ORDER BY reactionCount DESC")
     List<Object[]> findTopReactedPostsThisWeek(@Param("startDate") java.time.LocalDateTime startDate);

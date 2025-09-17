@@ -42,6 +42,10 @@
     <button onclick="subPrivate()">Subscribe Private (/user/queue/private-message)</button>
     <button onclick="unsubPrivate()">Unsubscribe Private</button>
   </div>
+  <div class="row">
+    <button onclick="subTyping()">Subscribe Typing (/topic/chat/{roomId}/typing)</button>
+    <button onclick="unsubTyping()">Unsubscribe Typing</button>
+  </div>
 
   <h3>Send</h3>
   <div class="row">
@@ -60,7 +64,7 @@
   <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1.6.1/dist/sockjs.min.js"></script>
   <script src="https://unpkg.com/@stomp/stompjs@7.0.0/bundles/stomp.umd.min.js"></script>
   <script>
-    let client, subRoomRef, subPrivateRef;
+    let client, subRoomRef, subPrivateRef, subTypingRef;
     let tokenRefreshInterval;
     let reconnectAttempts = 0;
     const maxReconnectAttempts = 5;
@@ -94,7 +98,8 @@
         const roomId = document.getElementById('roomId').value.trim();
         if (roomId) {
           subRoomRef = client.subscribe(`/topic/chat/${roomId}`, msg => log('[room] ' + msg.body));
-          log(`Auto-subscribed to room ${roomId}`);
+          subTypingRef = client.subscribe(`/topic/chat/${roomId}/typing`, msg => log('[typing] ' + msg.body));
+          log(`Auto-subscribed to room ${roomId} and typing indicators`);
         }
         
         // Start token refresh timer
@@ -121,6 +126,7 @@
       if (client) {
         try { subRoomRef?.unsubscribe(); } catch {}
         try { subPrivateRef?.unsubscribe(); } catch {}
+        try { subTypingRef?.unsubscribe(); } catch {}
         stopTokenRefresh();
         client.deactivate().then(() => log('Disconnected.'));
       }
@@ -135,6 +141,17 @@
 
     function unsubRoom() {
       try { subRoomRef?.unsubscribe(); log('Unsubscribed room'); } catch (e) { log('Unsub room err: ' + e); }
+    }
+
+    function subTyping() {
+      const roomId = document.getElementById('roomId').value.trim();
+      if (!client?.active) return log('Not connected.');
+      subTypingRef = client.subscribe(`/topic/chat/${roomId}/typing`, msg => log('[typing] ' + msg.body));
+      log(`Subscribed typing indicators for room ${roomId}`);
+    }
+
+    function unsubTyping() {
+      try { subTypingRef?.unsubscribe(); log('Unsubscribed typing'); } catch (e) { log('Unsub typing err: ' + e); }
     }
 
     function subPrivate() {
