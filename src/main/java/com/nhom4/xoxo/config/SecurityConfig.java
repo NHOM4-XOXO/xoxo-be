@@ -76,21 +76,9 @@ public class SecurityConfig {
                         .anyRequest().permitAll())
                 .oauth2Login(oauth2 -> oauth2
                         .loginPage("/login")
+                        .defaultSuccessUrl("/oauth2/success")
                         .successHandler(oAuth2SuccessHandler())
-                        .failureHandler((req, res, ex) -> {
-                            res.setStatus(HttpServletResponse.SC_OK);
-                            res.setContentType("text/html;charset=UTF-8");
-                            String targetOrigin = "https://xoxo.id.vn"; // hoặc lấy từ cấu hình FE
-                            String msg = ex != null ? ex.getMessage() : "Unknown error";
-                            String html = "<!DOCTYPE html><html><body><script>"
-                                + "if(window.opener){window.opener.postMessage({type:'OAUTH2_DONE',success:false,message:"
-                                + java.net.URLEncoder.encode(msg, "UTF-8")
-                                + "},'" + targetOrigin + "');window.close();}"
-                                + "else{document.body.textContent='OAuth2 login failed.';}"
-                                + "</script></body></html>";
-                            res.getWriter().write(html);
-                            res.getWriter().flush();
-                        }))
+                        .failureUrl("/oauth2/error"))
                 .logout(logout -> logout
                         .logoutUrl("/logout")
                         .logoutSuccessUrl("/login")
