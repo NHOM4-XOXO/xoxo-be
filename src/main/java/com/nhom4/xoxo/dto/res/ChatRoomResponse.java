@@ -22,7 +22,9 @@ public class ChatRoomResponse {
     private ChatRoomType type;
     private Long createdBy;
     private List<Long> participantIds;
+    private String lastMessage;
     private LocalDateTime lastMessageAt;
+
     private boolean active;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;

@@ -187,6 +187,7 @@ public class ChatServiceImpl implements ChatService {
 
         // Update last message time
         chatRoom.setLastMessageAt(LocalDateTime.now());
+        chatRoom.setLastMessage(request.getContent());
         chatRoomRepository.save(chatRoom);
 
         // Save to MongoDB for real-time access
@@ -409,7 +410,6 @@ public class ChatServiceImpl implements ChatService {
                 .name(otherUser.getFirstName() + " " + otherUser.getLastName())
                 .type(ChatRoomType.DIRECT)
                 .createdBy(currentUserId)
-                .lastMessageAt(LocalDateTime.now())
                 .active(true)
                 .build();
 

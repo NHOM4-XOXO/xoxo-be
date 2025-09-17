@@ -60,6 +60,9 @@ public class ChatRoom extends BaseEntity {
     )
     private Set<User> participants = new HashSet<>();
 
+    @Column(nullable = false)
+    private String lastMessage;
+
     @OneToMany(mappedBy = "chatRoom", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private Set<ChatMessage> messages = new HashSet<>();
 
