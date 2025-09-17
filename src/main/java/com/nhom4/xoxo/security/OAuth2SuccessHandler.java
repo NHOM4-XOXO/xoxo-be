@@ -176,21 +176,24 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
             // Set refreshToken vào HttpOnly cookie
             ResponseCookie cookie = cookieConfig.createRefreshTokenCookie(refreshToken);
             response.addHeader("Set-Cookie", cookie.toString());
+
             String jwt = jwtTokenProvider.generateToken(authentication);
-            // Trả HTML, postMessage access token tới FE và đóng popup
+
+            response.addHeader("Set-Cookie", cookie.toString());
+
+            response.setStatus(HttpServletResponse.SC_OK);
             response.setContentType("text/html;charset=UTF-8");
-            String targetOrigin = frontendBaseUrl; // ví dụ: https://xoxo.id.vn
+            String targetOrigin = frontendBaseUrl; // https://xoxo.id.vn
+
             String html = "<!DOCTYPE html><html><body><script>"
-                    + "try{"
-                    + "  if(window.opener){"
-                    + "    window.opener.postMessage({type:'OAUTH2_DONE', success:true, token:'" + jwt + "'}, '"
-                    + targetOrigin + "');"
-                    + "    window.close();"
-                    + "  }else{document.write('Login success. You can close this window.');}"
-                    + "}catch(e){document.write('Login completed. Please close this window.');}"
+                    + "try{if(window.opener){window.opener.postMessage({type:'OAUTH2_DONE',success:true,token:'"
+                    + jwt + "'},'" + targetOrigin + "');window.close();}"
+                    + "else{document.body.textContent='Login success. You can close this window.';}}"
+                    + "catch(e){document.body.textContent='Login completed. Please close this window.';}"
                     + "</script></body></html>";
             response.getWriter().write(html);
             response.getWriter().flush();
+            clearAuthenticationAttributes(request);
             return;
 
         } catch (Exception e) {
