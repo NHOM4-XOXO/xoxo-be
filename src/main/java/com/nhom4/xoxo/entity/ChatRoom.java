@@ -18,6 +18,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.JoinTable;
 import jakarta.persistence.ManyToMany;
+import jakarta.persistence.PrePersist;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
@@ -71,4 +72,14 @@ public class ChatRoom extends BaseEntity {
 
     @Column(nullable = false)
     private boolean active = true;
+
+    @PrePersist
+    private void prePersistDefaults() {
+        if (this.lastMessage == null) {
+            this.lastMessage = "";
+        }
+        if (this.lastMessageAt == null) {
+            this.lastMessageAt = java.time.LocalDateTime.now();
+        }
+    }
 }

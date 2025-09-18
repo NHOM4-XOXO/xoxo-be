@@ -83,6 +83,8 @@ public class ChatController {
         return ResponseEntity.ok(WrapRes.success(response));
     }
 
+   
+
     @GetMapping("/rooms/{chatRoomId}")
     @Operation(summary = "Get chat room by ID")
     public ResponseEntity<WrapRes<ChatRoomResponse>> getChatRoom(@PathVariable Long chatRoomId, Principal principal) {

@@ -1,6 +1,7 @@
 package com.nhom4.xoxo.service.impl;
 
 import java.time.LocalDateTime;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
@@ -73,7 +74,7 @@ public class ChatServiceImpl implements ChatService {
         // Add participants
         Set<User> participants = new HashSet<>();
         participants.add(currentUser);
-        
+
         if (request.getParticipantIds() != null) {
             for (Long participantId : request.getParticipantIds()) {
                 if (!participantId.equals(currentUserId)) {
@@ -83,7 +84,7 @@ public class ChatServiceImpl implements ChatService {
                 }
             }
         }
-        
+
         chatRoom.setParticipants(participants);
         chatRoom = chatRoomRepository.save(chatRoom);
 
@@ -119,10 +120,65 @@ public class ChatServiceImpl implements ChatService {
 
     @Override
     public List<ChatRoomResponse> getUserChatRooms(Long userId) {
-        List<ChatRoom> chatRooms = chatRoomRepository.findChatRoomsByUserId(userId);
+        List<ChatRoom> chatRooms = chatRoomRepository.findChatRoomsByUserIdWithMessages(userId);
+
         return chatRooms.stream()
-                .map(this::mapToChatRoomResponse)
+                .map(chatRoom -> {
+                    // Bây giờ messages đã được load sẵn
+                    String lastMessage = getLastMessageContentSafely(chatRoom);
+                    LocalDateTime lastMessageAt = getLastMessageTimeSafely(chatRoom);
+
+                    return ChatRoomResponse.builder()
+                            .id(chatRoom.getId())
+                            .name(chatRoom.getName())
+                            .description(chatRoom.getDescription())
+                            .avatarUrl(chatRoom.getAvatarUrl())
+                            .type(chatRoom.getType())
+                            .createdBy(chatRoom.getCreatedBy())
+                            .participantIds(chatRoom.getParticipants().stream()
+                                    .map(User::getId)
+                                    .collect(Collectors.toList()))
+                            .lastMessage(lastMessage)
+                            .lastMessageAt(lastMessageAt)
+                            .active(chatRoom.isActive())
+                            .createdAt(chatRoom.getCreatedAt())
+                            .updatedAt(chatRoom.getUpdatedAt())
+                            .build();
+                })
                 .collect(Collectors.toList());
+    }
+
+    // Sửa method để dùng query riêng
+    private String getLastMessageContentSafely(ChatRoom chatRoom) {
+        try {
+            Optional<ChatMessage> lastMessage = chatRoomRepository.findLastMessageByChatRoomId(chatRoom.getId());
+            if (lastMessage.isPresent()) {
+                System.out.println(
+                        "Found last message for ChatRoom " + chatRoom.getId() + ": " + lastMessage.get().getContent());
+                return lastMessage.get().getContent();
+            } else {
+                System.out.println("No last message found for ChatRoom " + chatRoom.getId() + ", using fallback: "
+                        + chatRoom.getLastMessage());
+                return chatRoom.getLastMessage();
+            }
+        } catch (Exception e) {
+            System.out.println(
+                    "Error getting last message for ChatRoom ID: " + chatRoom.getId() + ", Error: " + e.getMessage());
+            return chatRoom.getLastMessage();
+        }
+    }
+
+    private LocalDateTime getLastMessageTimeSafely(ChatRoom chatRoom) {
+        try {
+            Optional<ChatMessage> lastMessage = chatRoomRepository.findLastMessageByChatRoomId(chatRoom.getId());
+            if (lastMessage.isPresent()) {
+                return lastMessage.get().getSentAt();
+            } else {
+                return chatRoom.getLastMessageAt();
+            }
+        } catch (Exception e) {
+            return chatRoom.getLastMessageAt();
+        }
     }
 
     @Override
@@ -249,7 +305,8 @@ public class ChatServiceImpl implements ChatService {
                 .orElseThrow(() -> new NotFoundException("Message not found"));
 
         // Check if user is sender or admin
-        if (!message.getSender().getId().equals(currentUserId) && !isUserAdmin(message.getChatRoom().getId(), currentUserId)) {
+        if (!message.getSender().getId().equals(currentUserId)
+                && !isUserAdmin(message.getChatRoom().getId(), currentUserId)) {
             throw new ForbiddenException("Cannot delete this message");
         }
 
@@ -453,16 +510,15 @@ public class ChatServiceImpl implements ChatService {
     private void sendRealTimeMessage(Long chatRoomId, ChatMessageResponse message) {
         // Send to all participants in the chat room
         messagingTemplate.convertAndSend("/topic/chat/" + chatRoomId, message);
-        
+
         // Send to specific user queues for notifications
         List<ChatParticipant> participants = chatParticipantRepository.findActiveParticipantsByChatRoom(chatRoomId);
         for (ChatParticipant participant : participants) {
             if (!participant.getUser().getId().equals(message.getSenderId())) {
                 messagingTemplate.convertAndSendToUser(
-                    participant.getUser().getId().toString(),
-                    "/queue/chat/" + chatRoomId,
-                    message
-                );
+                        participant.getUser().getId().toString(),
+                        "/queue/chat/" + chatRoomId,
+                        message);
             }
         }
     }
