@@ -51,8 +51,14 @@ public class FriendshipImpl implements FriendshipService {
                 throw new ServiceException("Đã có lời mời kết bạn với người dùng này");
             } else if (friendship.getStatus() == FriendshipStatus.ACCEPTED) {
                 throw new ServiceException("Đã là bạn bè với người dùng này");
+            } else if (friendship.getStatus() == FriendshipStatus.REJECTED) {
+                // Cho phép gửi lại: cập nhật lại hướng và trạng thái
+                friendship.setUser(user);
+                friendship.setFriend(friend);
+                friendship.setInitiator(user);
+                friendship.setStatus(FriendshipStatus.PENDING);
+                return friendshipRepository.save(friendship);
             }
-            // Nếu status là REJECTED, cho phép gửi lại lời mời
         }
         
         Friendship friendship = Friendship.builder()

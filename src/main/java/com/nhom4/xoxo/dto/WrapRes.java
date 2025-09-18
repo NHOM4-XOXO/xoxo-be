@@ -18,6 +18,14 @@ public class WrapRes <T>{
         return res;
     }
     
+    public static <T> WrapRes<T> success(T data, String message) {
+        WrapRes<T> res = new WrapRes<>();
+        res.setStatusCode(WrapResStatus.SUCCESS);
+        res.setMessage(message);
+        res.setData(data);
+        return res;
+    }
+    
     public static <T> WrapRes<T> error( String message) {
         WrapRes<T> res = new WrapRes<>();
         res.data = null;

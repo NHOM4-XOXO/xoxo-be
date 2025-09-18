@@ -48,7 +48,8 @@ public class FriendshipController {
 
         Friendship friendship = friendshipService.createFriendship(user.getId(), request.getFriendId());
         FriendshipResponse response = FriendshipResponse.fromFriendship(friendship, modelMapper);
-        return ResponseEntity.ok(WrapRes.success(response));
+        String message = friendship.getStatus().name().equals("PENDING") ? "Đã tạo lời mời kết bạn" : "Success";
+        return ResponseEntity.ok(WrapRes.success(response, message));
     }
 
     @PostMapping("/accept")
