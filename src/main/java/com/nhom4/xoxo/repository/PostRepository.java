@@ -148,7 +148,9 @@ public interface PostRepository extends JpaRepository<Post, Long> {
         p.updatedAt
       )
       from Post p join p.author a
-      where p.author = :author and p.isPublic = true
+      where p.author = :author 
+        and p.isPublic = true
+        and p.status = com.nhom4.xoxo.enums.PostStatus.ACTIVE
       order by p.createdAt desc
       """)
   List<PostItemResponse> findPostItemByAuthor(@Param("author") User author);
@@ -178,6 +180,7 @@ public interface PostRepository extends JpaRepository<Post, Long> {
       )
       from Post p join p.author a
       where p.author = :currentUser
+        and p.status in (com.nhom4.xoxo.enums.PostStatus.ACTIVE, com.nhom4.xoxo.enums.PostStatus.HIDDEN)
       order by p.createdAt desc
       """)
   List<PostItemResponse> findPostItemByCurrentUser(@Param("currentUser") User currentUser);
