@@ -43,22 +43,22 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
 
     @Autowired
     private RefreshTokenService refreshTokenService;
-    
+
     @Autowired
     private PasswordEncoder passwordEncoder;
     @Autowired
     private CookieConfig cookieConfig;
 
-    @Value("${fe.user.base-url:http://localhost:3000}")
+    @Value("${fe.user.base-url:https://localhost:3000}")
     private String frontendBaseUrl;
 
     public static String toSlug(String input) {
         String normalized = Normalizer.normalize(input, Normalizer.Form.NFD);
         String slug = normalized.replaceAll("\\p{InCombiningDiacriticalMarks}+", "");
-        slug = slug.replaceAll("[^a-zA-Z0-9]", ""); 
+        slug = slug.replaceAll("[^a-zA-Z0-9]", "");
         return slug.toLowerCase();
     }
-    
+
     public String generateUsername(String firstName, String lastName) {
         String username = toSlug(firstName) + toSlug(lastName);
         if (userRepository.existsByUsername(username)) {
@@ -73,7 +73,7 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
 
         try {
             log.info("[OAuth2SuccessHandler] OAuth2 authentication started");
-            
+
             OAuth2User oAuth2User = (OAuth2User) authentication.getPrincipal();
             Map<String, Object> attributes = oAuth2User.getAttributes();
 
@@ -84,7 +84,7 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
             String familyName = (String) attributes.get("family_name");
             String picture = (String) attributes.get("picture");
 
-            log.info("[OAuth2SuccessHandler] OAuth2 user info - Email: {}, Name: {}, Given: {}, Family: {}", 
+            log.info("[OAuth2SuccessHandler] OAuth2 user info - Email: {}, Name: {}, Given: {}, Family: {}",
                     email, name, givenName, familyName);
 
             if (email == null || email.isEmpty()) {
@@ -96,17 +96,18 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
             // Kiểm tra user đã tồn tại chưa
             Optional<User> existingUser = userRepository.findByEmail(email);
             User user = null;
-            
+
             if (existingUser.isPresent()) {
                 user = existingUser.get();
                 log.info("[OAuth2SuccessHandler] Existing user found: {}", user.getEmail());
-              
-                //bi ban khi dang nhap bang oauth2 thi khong cho dang nhap
+
+                // bi ban khi dang nhap bang oauth2 thi khong cho dang nhap
                 if (!user.isEnabled()) {
                     log.error("[OAuth2SuccessHandler] User is disabled: {}", user.getEmail());
-                   throw new Exception("Tài khoản của bạn đã bị vô hiệu hóa. Vui lòng liên hệ với admin để được hỗ trợ.");
+                    throw new Exception(
+                            "Tài khoản của bạn đã bị vô hiệu hóa. Vui lòng liên hệ với admin để được hỗ trợ.");
                 }
-                
+
                 // Cập nhật thông tin mới từ Google nếu cần
                 if (picture != null && !picture.equals(user.getAvatarUrl())) {
                     user.setAvatarUrl(picture);
@@ -114,10 +115,10 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
                     userRepository.save(user);
                     log.info("[OAuth2SuccessHandler] Updated avatar for existing user: {}", user.getEmail());
                 }
-                
+
             } else {
                 log.info("[OAuth2SuccessHandler] Creating new user for email: {}", email);
-                
+
                 // Tạo user mới
                 user = new User();
                 user.setEmail(email);
@@ -146,7 +147,7 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
                 user.setPassword(passwordEncoder.encode(randomPassword));
                 user.setEnabled(true);
                 user.setAuthProvider(AuthProvider.GOOGLE);
-                
+
                 String username = generateUsername(user.getFirstName(), user.getLastName());
                 while (userRepository.existsByUsername(username)) {
                     username = generateUsername(user.getFirstName(), user.getLastName());
@@ -165,7 +166,7 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
                 user.setUpdatedAt(LocalDateTime.now());
 
                 user = userRepository.save(user);
-                log.info("[OAuth2SuccessHandler] New user created successfully: {} (ID: {})", 
+                log.info("[OAuth2SuccessHandler] New user created successfully: {} (ID: {})",
                         user.getEmail(), user.getId());
             }
 
@@ -175,25 +176,23 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
 
             String refreshToken = UUID.randomUUID().toString();
             refreshTokenService.saveRefreshToken(refreshToken, user.getEmail(), 7, TimeUnit.DAYS);
-            
+
             // Set refreshToken vào HttpOnly cookie
             ResponseCookie cookie = cookieConfig.createRefreshTokenCookie(refreshToken);
             response.addHeader("Set-Cookie", cookie.toString());
-            // Redirect về frontend với token
-            response.setContentType("application/json;charset=UTF-8");
-            response.getWriter().write("{\"token\":\"" + jwt + "\"}");
-            response.getWriter().flush();
-            
-            getRedirectStrategy().sendRedirect(request, response, frontendBaseUrl);
-            
+            // redirect with jwt
+            String redirectUrl = frontendBaseUrl + "/oauth2/success?jwt=" + jwt;
+
+            getRedirectStrategy().sendRedirect(request, response, redirectUrl);
+
         } catch (Exception e) {
             log.error("[OAuth2SuccessHandler] Error during OAuth2 authentication: {}", e.getMessage(), e);
             redirectToError(response, "Lỗi xác thực OAuth2: " + e.getMessage());
         }
     }
-    
+
     private void redirectToError(HttpServletResponse response, String errorMessage) throws IOException {
-        String redirectUrl = frontendBaseUrl + "/oauth2/error?message=" + 
+        String redirectUrl = frontendBaseUrl + "/oauth2/error?message=" +
                 java.net.URLEncoder.encode(errorMessage, "UTF-8");
         log.error("[OAuth2SuccessHandler] Redirecting to error page: {}", redirectUrl);
         response.sendRedirect(redirectUrl);
