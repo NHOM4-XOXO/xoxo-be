@@ -1,6 +1,9 @@
 package com.nhom4.xoxo.security;
 
 import java.security.Key;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.temporal.ChronoUnit;
 import java.util.Date;
 import java.util.HashSet;
 import java.util.Set;
@@ -85,14 +88,14 @@ public class JwtTokenProvider {
             roles.add(Role.ADMIN);
         }
 
-        Date now = new Date();
-        Date expiryDate = new Date(now.getTime() + jwtExpirationInMs);
-
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime expiryTime = now.plus(jwtExpirationInMs, ChronoUnit.MILLIS);
+        
         return Jwts.builder()
                 .setSubject(username)
                 .claim("roles", roles.stream().map(Role::name).collect(Collectors.toList()))
-                .setIssuedAt(now)
-                .setExpiration(expiryDate)
+                .setIssuedAt(Date.from(now.atZone(ZoneId.systemDefault()).toInstant()))
+                .setExpiration(Date.from(expiryTime.atZone(ZoneId.systemDefault()).toInstant()))
                 .signWith(getSigningKey(), SignatureAlgorithm.HS512)
                 .compact();
     }
