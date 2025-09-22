@@ -399,9 +399,14 @@ public class UserServiceImpl implements UserService {
         user.setEnabled(true);
         user.setCreatedAt(LocalDateTime.now());
         user.setUpdatedAt(LocalDateTime.now());
+        user.setUsername("admin"+UUID.randomUUID().toString().substring(0, 5));
+        while (userRepository.existsByUsername(user.getUsername())) {
+            user.setUsername("admin"+UUID.randomUUID().toString().substring(0, 5));
+        }
 
         return userRepository.save(user);
     }
+
 
     @Override
     @Transactional(transactionManager = "transactionManager")

@@ -40,6 +40,10 @@ public class UpdateUserRequest {
     @Pattern(regexp = "^[\\p{L} ]+$", message = "Bio không được chứa số hoặc ký tự đặc biệt")
     private String bio;
 
+    @Size(max = 255)
+    @NotBlank(message = "Username không được để trống")
+    @Pattern(regexp = "^[\\p{L} ]+$", message = "Username không được chứa số hoặc ký tự đặc biệt")
+    private String username;
 
  
     

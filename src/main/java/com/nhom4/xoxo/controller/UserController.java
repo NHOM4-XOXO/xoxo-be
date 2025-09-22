@@ -74,6 +74,7 @@ public class UserController {
         User user = userService.findByEmail(email);
         modelMapper.map(updateRequest, user);
         User updatedUser = userService.updateUser(user, user);
+        
         UserResponse userResponse = modelMapper.map(updatedUser, UserResponse.class);
         return ResponseEntity.ok(WrapRes.success(userResponse));
     }
@@ -274,4 +275,5 @@ public class UserController {
         SearchResultResponse result = searchService.searchGroups(keyword, pageable);
         return ResponseEntity.ok(WrapRes.success(result));
     }
+
 }

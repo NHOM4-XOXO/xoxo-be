@@ -84,30 +84,6 @@ public class OwnerController {
     }
 
     @Operation(
-        summary = "Set lại toàn bộ role cho user",
-        description = "Chỉ OWNER mới có quyền set lại toàn bộ role cho user.",
-        responses = {
-            @ApiResponse(responseCode = "200", description = "Set role thành công")
-        }
-    )
-    @PutMapping("/users/{userId}/roles")
-    public ResponseEntity<WrapRes<?>> setUserRoles(@PathVariable Long userId, @RequestBody @Valid List<RoleRequest> rolesRequest) {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        String currentUserEmail = authentication.getName();
-        User currentUser = userService.findByEmail(currentUserEmail);
-        if (!userService.canSetUserRoles(currentUser)) {
-            return ResponseEntity.status(403).body(WrapRes.error(WrapResStatus.SECURITY_ERROR, "Access denied. Owner role required."));
-        }
-        Set<Role> currentRoles = currentUser.getRoles();
-        Set<Role> roleReq = rolesRequest.stream().map(RoleRequest::getRole).collect(Collectors.toSet());
-        Set<Role> newRoles = new HashSet<>(currentRoles);
-        newRoles.addAll(roleReq);
-
-        User updatedUser = userService.setUserRoles(userId, newRoles, currentUser);
-        return ResponseEntity.ok(WrapRes.success("Roles set successfully; New roles: " + updatedUser.getRoles().toString()));
-    }
-
-    @Operation(
         summary = "Tạo tài khoản admin mới",
         description = "Chỉ OWNER mới có quyền tạo tài khoản admin.",
         responses = {
