@@ -324,6 +324,19 @@ public class PostController {
         return ResponseEntity.ok(WrapRes.success(c));
     }
 
+
+    @Operation(summary = "Lấy subtree của 1 comment", description = "Trả về node và tất cả descendants của nó")
+    @GetMapping("/comments/{commentId}/subtree")
+    public ResponseEntity<WrapRes<?>> getCommentSubtree(@PathVariable Long commentId) {
+        return ResponseEntity.ok(WrapRes.success(postService.getCommentSubtree(commentId)));
+    }
+
+    @Operation(summary = "Đếm tổng số replies (mọi cấp)", description = "Đếm tất cả descendants của comment")
+    @GetMapping("/comments/{commentId}/replies/count-all")
+    public ResponseEntity<WrapRes<?>> countAllReplies(@PathVariable Long commentId) {
+        return ResponseEntity.ok(WrapRes.success(postService.countAllRepliesForComment(commentId)));
+    }
+
     @Operation(summary = "Share post", description = "Share post", responses = {
             @ApiResponse(responseCode = "200", description = "Share post")
     })

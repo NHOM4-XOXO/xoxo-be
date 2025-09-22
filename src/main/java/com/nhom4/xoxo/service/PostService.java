@@ -93,6 +93,17 @@ public interface PostService {
 
     // Danh sách comments top-level của post (DTO)
     List<CommentItemResponse> getCommentsOfPost(Long postId);
+
+    Long countReplyForComment(Long commentId);
+
+    List<CommentItemResponse> getRepliesForComment(Long commentId);
+
+    // Nested comment (materialized path) helpers
+    List<CommentItemResponse> getCommentThread(Long rootCommentId);
+
+    List<CommentItemResponse> getCommentSubtree(Long commentId);
+
+    Long countAllRepliesForComment(Long commentId);
     
     // Facebook-style reaction methods
     void updateReactionCounts(Long postId);

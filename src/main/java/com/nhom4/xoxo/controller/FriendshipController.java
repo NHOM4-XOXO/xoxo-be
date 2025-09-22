@@ -6,7 +6,7 @@ import java.util.stream.Collectors;
 
 import org.modelmapper.ModelMapper;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -92,16 +92,15 @@ public class FriendshipController {
 
         return ResponseEntity.ok(WrapRes.success(friendResponses));
     }
+
     @GetMapping("/friends/{userId}")
-    public  ResponseEntity<WrapRes<List<UserResponse>>> getFriendsByUserId(@PathVariable Long userId) {
+    public ResponseEntity<WrapRes<List<UserResponse>>> getFriendsByUserId(@PathVariable Long userId) {
         List<User> friends = friendshipService.getFriendsByUserId(userId);
         List<UserResponse> friendResponses = friends.stream()
                 .map(friend -> modelMapper.map(friend, UserResponse.class))
                 .collect(Collectors.toList());
         return ResponseEntity.ok(WrapRes.success(friendResponses));
     }
-  
-    
 
     @GetMapping("/suggestions")
     public ResponseEntity<WrapRes<List<SuggestedFriendResponse>>> suggestFriends(Principal principal) {
@@ -148,4 +147,36 @@ public class FriendshipController {
 
         return ResponseEntity.ok(WrapRes.success(response));
     }
+
+    @DeleteMapping("/{friendshipId}")
+    public ResponseEntity<WrapRes<FriendshipResponse>> deleteFriendship(@PathVariable Long friendshipId, Principal principal) {
+
+        User user = getCurrentUser(principal);
+        Friendship friendship = friendshipService.cancelFriendship(friendshipId, user.getId());
+        FriendshipResponse response = FriendshipResponse.fromFriendship(friendship, modelMapper);
+        return ResponseEntity.ok(WrapRes.success(response));
+    }
+
+    @DeleteMapping("/{friendshipId}/request")
+    public ResponseEntity<WrapRes<FriendshipResponse>> deleteFriendshipRequest(@PathVariable Long friendshipId, Principal principal) {
+        User user = getCurrentUser(principal);
+        Friendship friendship = friendshipService.cancelFriendshipRequest(friendshipId, user.getId());
+        FriendshipResponse response = FriendshipResponse.fromFriendship(friendship, modelMapper);
+        return ResponseEntity.ok(WrapRes.success(response));
+    }
+    @GetMapping("/{userId}/is-friend")
+    public ResponseEntity<WrapRes<Boolean>> isFriend(@PathVariable Long userId, Principal principal) {
+        User user = getCurrentUser(principal);
+        boolean isFriend = friendshipService.areFriends(user.getId(), userId);
+        return ResponseEntity.ok(WrapRes.success(isFriend));
+    }
+
+    public User getCurrentUser(Principal principal) {
+        if (principal == null)
+            return null;
+        String email = principal.getName();
+        return userService.findByEmail(email);
+     
+    }
+
 }

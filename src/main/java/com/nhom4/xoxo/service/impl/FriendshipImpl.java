@@ -181,14 +181,14 @@ public class FriendshipImpl implements FriendshipService {
         Friendship friendship = friendshipRepository.findById(friendshipId)
                 .orElseThrow(() -> new ServiceException("Friendship not found"));
         
-        // Kiểm tra người cancel phải là người gửi lời mời
-        if (!friendship.getUser().getId().equals(userId)) {
+        // Kiểm tra người cancel phải là ngườithuoc friendship
+        if (!friendship.getUser().getId().equals(userId) && !friendship.getFriend().getId().equals(userId)) {
             throw new ServiceException("Bạn không có quyền hủy lời mời kết bạn này");
         }
         
-        // Kiểm tra trạng thái phải là PENDING
-        if (friendship.getStatus() != FriendshipStatus.PENDING) {
-            throw new ServiceException("Lời mời kết bạn này không còn hợp lệ");
+        // Kiểm tra trạng thái phải là Accepted
+        if (friendship.getStatus() != FriendshipStatus.ACCEPTED) {
+            throw new ServiceException("Mối quan hệ này không còn hợp lệ");
         }
         
         friendshipRepository.delete(friendship);

@@ -16,6 +16,7 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
+import jakarta.persistence.Index;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
@@ -25,7 +26,12 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 @Entity
-@Table(name = "comments")
+@Table(name = "comments", indexes = {
+        @Index(name = "idx_comments_post_id", columnList = "post_id"),
+        @Index(name = "idx_comments_parent_comment_id", columnList = "parent_comment_id"),
+        @Index(name = "idx_comments_root_id", columnList = "root_id"),
+        @Index(name = "idx_comments_path", columnList = "path")
+})
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
@@ -62,6 +68,16 @@ public class Comment extends BaseEntity {
     @Column(nullable = false)
     @Builder.Default
     private Integer likeCount = 0;
+
+    @Column(name = "root_id")
+    private Long rootId;
+
+    @Column(name = "level", nullable = false)
+    @Builder.Default
+    private Integer level = 0;
+
+    @Column(name = "path", length = 1024)
+    private String path;
 
     @Column(nullable = false)
     @Builder.Default

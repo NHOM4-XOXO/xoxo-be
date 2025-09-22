@@ -298,10 +298,29 @@ public class PostServiceImpl implements PostService {
     public CommentItemResponse addComment(Long postId, User author, String content, Long parentId) {
         Post post = getPostById(postId).get();
         Comment.CommentBuilder b = Comment.builder().post(post).author(author).content(content);
-        if (parentId != null)
-            b.parentComment(commentRepository.findById(parentId)
-                    .orElseThrow(() -> new NotFoundException("Parent comment not found")));
+        Comment parent = null;
+        if (parentId != null) {
+            parent = commentRepository.findById(parentId)
+                    .orElseThrow(() -> new NotFoundException("Parent comment not found"));
+            b.parentComment(parent);
+        }
         Comment saved = commentRepository.save(b.build());
+
+        // Populate materialized path fields (rootId, level, path) after we have the ID
+        String newSegment = formatPathSegment(saved.getId());
+        if (parent != null) {
+            Long rootId = parent.getRootId() != null ? parent.getRootId() : parent.getId();
+            Integer parentLevel = parent.getLevel() != null ? parent.getLevel() : 0;
+            String parentPath = parent.getPath() != null ? parent.getPath() : formatPathSegment(parent.getId());
+            saved.setRootId(rootId);
+            saved.setLevel(parentLevel + 1);
+            saved.setPath(parentPath + "/" + newSegment);
+        } else {
+            saved.setRootId(saved.getId());
+            saved.setLevel(0);
+            saved.setPath(newSegment);
+        }
+        saved = commentRepository.save(saved);
         post.setCommentCount(post.getCommentCount() + 1);
         postRepository.save(post);
 
@@ -316,6 +335,10 @@ public class PostServiceImpl implements PostService {
                 author.getId(), author.getFirstName(), author.getLastName(), author.getAvatarUrl(),
                 saved.getParentComment() != null ? saved.getParentComment().getId() : null,
                 post.getId(), saved.getCreatedAt());
+    }
+
+    private String formatPathSegment(Long id) {
+        return String.format("%06d", id);
     }
 
     @Override
@@ -575,6 +598,65 @@ public class PostServiceImpl implements PostService {
                         .build())
                 .collect(Collectors.toList());
         return postsWithMedia;
+    }
+
+    @Override
+    public Long countReplyForComment(Long commentId) {
+        Comment c = commentRepository.findById(commentId)
+                .orElseThrow(() -> new NotFoundException("Comment not found"));
+        if (c.getPath() != null && !c.getPath().isEmpty()) {
+            return commentRepository.countDescendantsByPath(c.getPath());
+        }
+        // Fallback to direct children count if path not initialized
+        return commentRepository.countRepliesByParentComment(c);
+    }
+
+    @Override
+    @Transactional(readOnly = true, transactionManager = "transactionManager")
+    public List<CommentItemResponse> getCommentThread(Long rootCommentId) {
+        Comment root = commentRepository.findById(rootCommentId)
+                .orElseThrow(() -> new NotFoundException("Comment not found"));
+        Long rootId = root.getRootId() != null ? root.getRootId() : root.getId();
+        return commentRepository.findThreadByRootId(rootId).stream()
+                .map(c -> new CommentItemResponse(
+                        c.getId(), c.getContent(), c.getLikeCount(),
+                        c.getAuthor().getId(), c.getAuthor().getFirstName(), c.getAuthor().getLastName(), c.getAuthor().getAvatarUrl(),
+                        c.getParentComment() != null ? c.getParentComment().getId() : null,
+                        c.getPost().getId(), c.getCreatedAt()))
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional(readOnly = true, transactionManager = "transactionManager")
+    public List<CommentItemResponse> getCommentSubtree(Long commentId) {
+        Comment node = commentRepository.findById(commentId)
+                .orElseThrow(() -> new NotFoundException("Comment not found"));
+        String path = node.getPath() != null ? node.getPath() : String.format("%06d", node.getId());
+        return commentRepository.findDescendantsByPath(path).stream()
+                .map(c -> new CommentItemResponse(
+                        c.getId(), c.getContent(), c.getLikeCount(),
+                        c.getAuthor().getId(), c.getAuthor().getFirstName(), c.getAuthor().getLastName(), c.getAuthor().getAvatarUrl(),
+                        c.getParentComment() != null ? c.getParentComment().getId() : null,
+                        c.getPost().getId(), c.getCreatedAt()))
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional(readOnly = true, transactionManager = "transactionManager")
+    public Long countAllRepliesForComment(Long commentId) {
+        Comment c = commentRepository.findById(commentId)
+                .orElseThrow(() -> new NotFoundException("Comment not found"));
+        if (c.getPath() != null && !c.getPath().isEmpty()) {
+            return commentRepository.countDescendantsByPath(c.getPath());
+        }
+        return commentRepository.countRepliesByParentComment(c);
+    }
+
+    @Override
+    public List<CommentItemResponse> getRepliesForComment(Long commentId) {
+        return commentRepository.findRepliesByParentComment(commentRepository.findById(commentId).orElseThrow(() -> new NotFoundException("Comment not found"))).stream()
+                .map(c -> new CommentItemResponse(c.getId(), c.getContent(), c.getLikeCount(), c.getAuthor().getId(), c.getAuthor().getFirstName(), c.getAuthor().getLastName(), c.getAuthor().getAvatarUrl(), null, c.getPost().getId(), c.getCreatedAt()))
+                .collect(Collectors.toList());
     }
 
 }

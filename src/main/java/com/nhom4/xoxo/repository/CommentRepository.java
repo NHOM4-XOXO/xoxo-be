@@ -33,8 +33,15 @@ public interface CommentRepository extends JpaRepository<Comment, Long> {
     @Query("SELECT c FROM Comment c WHERE c.post = :post AND c.parentComment IS NULL")
     List<Comment> findTopLevelCommentsByPost(@Param("post") Post post);
     
+    // Đếm số lượng replies của 1 comment
+    @Query("SELECT COUNT(c) FROM Comment c WHERE c.parentComment = :parentComment")
+    Long countRepliesByParentComment(@Param("parentComment") Comment parentComment);
+
     // Tìm replies của 1 comment
-    List<Comment> findByParentComment(Comment parentComment);
+    @Query("SELECT c FROM Comment c WHERE c.parentComment = :parentComment")
+    List<Comment> findRepliesByParentComment(@Param("parentComment") Comment parentComment);
+    
+
     
     // Pagination cho comments của post
     Page<Comment> findByPostOrderByCreatedAtDesc(Post post, Pageable pageable);
@@ -50,4 +57,17 @@ public interface CommentRepository extends JpaRepository<Comment, Long> {
     // Tìm comments theo content
     @Query("SELECT c FROM Comment c WHERE c.content LIKE %:content%")
     List<Comment> findByContentContaining(@Param("content") String content);
+
+    // ===== Materialized Path helpers =====
+    @Query(value = "SELECT COUNT(*) FROM comments c WHERE c.path LIKE CONCAT(:path, '/%')", nativeQuery = true)
+    Long countDescendantsByPath(@Param("path") String path);
+
+    @Query(value = "SELECT * FROM comments c WHERE c.path = :path OR c.path LIKE CONCAT(:path, '/%') ORDER BY c.path", nativeQuery = true)
+    List<Comment> findSubtreeByPath(@Param("path") String path);
+
+    @Query(value = "SELECT * FROM comments c WHERE c.path LIKE CONCAT(:path, '/%') ORDER BY c.path", nativeQuery = true)
+    List<Comment> findDescendantsByPath(@Param("path") String path);
+
+    @Query("SELECT c FROM Comment c WHERE c.rootId = :rootId ORDER BY c.path ASC")
+    List<Comment> findThreadByRootId(@Param("rootId") Long rootId);
 } 
