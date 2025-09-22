@@ -33,19 +33,23 @@ public interface UserRepository extends JpaRepository<User, Long> {
     Optional<User> findByUsername(String username);
     
     // Search methods
-    @Query("SELECT u FROM User u WHERE " +
+    @Query("SELECT u FROM User u WHERE (" +
            "LOWER(u.firstName) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
            "LOWER(u.lastName) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
            "LOWER(u.username) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
            "LOWER(u.email) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
-           "LOWER(u.bio) LIKE LOWER(CONCAT('%', :keyword, '%'))")
+           "LOWER(u.bio) LIKE LOWER(CONCAT('%', :keyword, '%'))" +
+           ") AND com.nhom4.xoxo.entity.Role.ADMIN NOT MEMBER OF u.roles " +
+           "AND com.nhom4.xoxo.entity.Role.OWNER NOT MEMBER OF u.roles")
     List<User> searchUsers(@Param("keyword") String keyword);
     
-    @Query("SELECT u FROM User u WHERE " +
+    @Query("SELECT u FROM User u WHERE (" +
            "LOWER(u.firstName) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
            "LOWER(u.lastName) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
            "LOWER(u.username) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
            "LOWER(u.email) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
-           "LOWER(u.bio) LIKE LOWER(CONCAT('%', :keyword, '%'))")
+           "LOWER(u.bio) LIKE LOWER(CONCAT('%', :keyword, '%'))" +
+           ") AND com.nhom4.xoxo.entity.Role.ADMIN NOT MEMBER OF u.roles " +
+           "AND com.nhom4.xoxo.entity.Role.OWNER NOT MEMBER OF u.roles")
     Page<User> searchUsersPageable(@Param("keyword") String keyword, Pageable pageable);
 }
