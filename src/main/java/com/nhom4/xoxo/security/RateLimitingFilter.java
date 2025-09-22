@@ -33,9 +33,9 @@ public class RateLimitingFilter extends OncePerRequestFilter {
     
     // Rate limiting configuration
     private static final int MAX_REQUESTS_PER_MINUTE = 60;
-    private static final int MAX_LOGIN_ATTEMPTS_PER_HOUR = 10;
-    private static final int MAX_REPORT_REQUESTS_PER_HOUR = 10;
-    private static final int MAX_SEARCH_REQUESTS_PER_MINUTE = 30;
+    private static final int MAX_LOGIN_ATTEMPTS_PER_HOUR = 50;
+    private static final int MAX_REPORT_REQUESTS_PER_HOUR =50;
+    private static final int MAX_SEARCH_REQUESTS_PER_MINUTE = 50;
     
     public RateLimitingFilter(@Qualifier("stringStringRedisTemplate") RedisTemplate<String, String> redisTemplate, ObjectMapper objectMapper) {
         this.redisTemplate = redisTemplate;
