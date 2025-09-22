@@ -257,6 +257,10 @@ public class UserServiceImpl implements UserService {
             return userRepository.save(user);
         }
         if (currentUser.getRoles().contains(Role.USER)) {
+            if(!canUpdateUsername(currentUser)){
+                throw new ServiceException("Username already exists");
+
+            }
             if (targetUser.getId().equals(currentUser.getId())) {
                 return userRepository.save(user);
             }
