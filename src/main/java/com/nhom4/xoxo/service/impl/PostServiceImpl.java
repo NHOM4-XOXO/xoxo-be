@@ -620,7 +620,8 @@ public class PostServiceImpl implements PostService {
         return commentRepository.findThreadByRootId(rootId).stream()
                 .map(c -> new CommentItemResponse(
                         c.getId(), c.getContent(), c.getLikeCount(),
-                        c.getAuthor().getId(), c.getAuthor().getFirstName(), c.getAuthor().getLastName(), c.getAuthor().getAvatarUrl(),
+                        c.getAuthor().getId(), c.getAuthor().getFirstName(), c.getAuthor().getLastName(),
+                        c.getAuthor().getAvatarUrl(),
                         c.getParentComment() != null ? c.getParentComment().getId() : null,
                         c.getPost().getId(), c.getCreatedAt()))
                 .collect(Collectors.toList());
@@ -631,11 +632,11 @@ public class PostServiceImpl implements PostService {
     public List<CommentItemResponse> getCommentSubtree(Long commentId) {
         Comment node = commentRepository.findById(commentId)
                 .orElseThrow(() -> new NotFoundException("Comment not found"));
-        String path = node.getPath() != null ? node.getPath() : String.format("%06d", node.getId());
-        return commentRepository.findDescendantsByPath(path).stream()
+        return commentRepository.findRepliesByParentComment(node).stream()
                 .map(c -> new CommentItemResponse(
                         c.getId(), c.getContent(), c.getLikeCount(),
-                        c.getAuthor().getId(), c.getAuthor().getFirstName(), c.getAuthor().getLastName(), c.getAuthor().getAvatarUrl(),
+                        c.getAuthor().getId(), c.getAuthor().getFirstName(), c.getAuthor().getLastName(),
+                        c.getAuthor().getAvatarUrl(),
                         c.getParentComment() != null ? c.getParentComment().getId() : null,
                         c.getPost().getId(), c.getCreatedAt()))
                 .collect(Collectors.toList());
@@ -654,8 +655,12 @@ public class PostServiceImpl implements PostService {
 
     @Override
     public List<CommentItemResponse> getRepliesForComment(Long commentId) {
-        return commentRepository.findRepliesByParentComment(commentRepository.findById(commentId).orElseThrow(() -> new NotFoundException("Comment not found"))).stream()
-                .map(c -> new CommentItemResponse(c.getId(), c.getContent(), c.getLikeCount(), c.getAuthor().getId(), c.getAuthor().getFirstName(), c.getAuthor().getLastName(), c.getAuthor().getAvatarUrl(), null, c.getPost().getId(), c.getCreatedAt()))
+        return commentRepository.findRepliesByParentComment(
+                commentRepository.findById(commentId).orElseThrow(() -> new NotFoundException("Comment not found")))
+                .stream()
+                .map(c -> new CommentItemResponse(c.getId(), c.getContent(), c.getLikeCount(), c.getAuthor().getId(),
+                        c.getAuthor().getFirstName(), c.getAuthor().getLastName(), c.getAuthor().getAvatarUrl(), null,
+                        c.getPost().getId(), c.getCreatedAt()))
                 .collect(Collectors.toList());
     }
 
