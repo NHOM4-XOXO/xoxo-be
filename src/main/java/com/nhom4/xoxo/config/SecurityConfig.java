@@ -71,6 +71,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/v1/reports/**").hasAnyRole("USER", "ADMIN", "OWNER")
                         .requestMatchers("/api/v1/groups/**").hasAnyRole("USER", "ADMIN", "OWNER")
                         .requestMatchers("/api/v1/group-members/**").hasAnyRole("USER", "ADMIN", "OWNER")
+                        .requestMatchers("/api/friendships/**").hasAnyRole("USER", "ADMIN", "OWNER")
                         
                         .requestMatchers("/login", "/oauth2/**").permitAll()
                         .anyRequest().permitAll())
