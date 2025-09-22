@@ -1,7 +1,10 @@
 package com.nhom4.xoxo.service.impl;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
 
@@ -211,6 +214,47 @@ public class FriendshipImpl implements FriendshipService {
         
         friendshipRepository.delete(friendship);
         return friendship;
+    }
+
+    @Override
+    public List<User> getMutualFriends(Long userId1, Long userId2) {
+        User user1 = userRepository.findById(userId1)
+                .orElseThrow(() -> new ServiceException("User not found"));
+        User user2 = userRepository.findById(userId2)
+                .orElseThrow(() -> new ServiceException("User not found"));
+        return getMutualFriends(user1, user2);
+    }
+
+    @Override
+    public Long countMutualFriends(Long userId1, Long userId2) {
+        User user1 = userRepository.findById(userId1)
+                .orElseThrow(() -> new ServiceException("User not found"));
+        User user2 = userRepository.findById(userId2)
+                .orElseThrow(() -> new ServiceException("User not found"));
+        return countMutualFriends(user1, user2);
+    }
+
+    private List<User> getMutualFriends(User user1, User user2) {
+        List<User> mutualFriends = new ArrayList<>();
+        List<User> friends1 = getFriendsByUserId(user1.getId());
+        Set<Long> friendIds1 = friends1.stream()
+                .map(User::getId)
+                .collect(Collectors.toSet());   
+        List<User> friends2 = getFriendsByUserId(user2.getId());
+        Set<Long> friendIds2 = friends2.stream()
+                .map(User::getId)
+                .collect(Collectors.toSet());
+        mutualFriends.addAll(friends1.stream()
+                .filter(friend -> friendIds2.contains(friend.getId()))
+                .collect(Collectors.toList()));
+        mutualFriends.addAll(friends2.stream()
+                .filter(friend -> friendIds1.contains(friend.getId()))
+                .collect(Collectors.toList()));
+        return mutualFriends;
+    }
+    private Long countMutualFriends(User user1, User user2) {
+        List<User> mutualFriends = getMutualFriends(user1, user2);
+        return (long) mutualFriends.size();
     }
 
 }

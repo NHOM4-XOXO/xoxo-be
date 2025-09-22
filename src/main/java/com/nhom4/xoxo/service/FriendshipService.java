@@ -36,4 +36,10 @@ public interface FriendshipService {
 
     // Kiểm tra có lời mời kết bạn nào giữa 2 user không
     boolean hasPendingRequest(Long userId1, Long userId2);
+
+    // Tìm tất cả bạn bè chung giữa 2 user
+    List<User> getMutualFriends(Long userId1, Long userId2);
+
+    // Đếm số lượng bạn bè chung giữa 2 user
+    Long countMutualFriends(Long userId1, Long userId2);
 }

@@ -171,6 +171,23 @@ public class FriendshipController {
         return ResponseEntity.ok(WrapRes.success(isFriend));
     }
 
+    @GetMapping("/{userId}/count-mutual-friends")
+    public ResponseEntity<WrapRes<Long>> countMutualFriends(@PathVariable Long userId, Principal principal) {
+        User user = getCurrentUser(principal);
+        Long count = friendshipService.countMutualFriends(user.getId(), userId);
+        return ResponseEntity.ok(WrapRes.success(count));
+    }
+
+    @GetMapping("/{userId}/mutual-friends")
+    public ResponseEntity<WrapRes<List<UserResponse>>> getMutualFriends(@PathVariable Long userId, Principal principal) {
+        User user = getCurrentUser(principal);
+        List<User> mutualFriends = friendshipService.getMutualFriends(user.getId(), userId);
+        List<UserResponse> mutualFriendsResponses = mutualFriends.stream()
+                .map(friend -> modelMapper.map(friend, UserResponse.class))
+                .collect(Collectors.toList());
+        return ResponseEntity.ok(WrapRes.success(mutualFriendsResponses));
+    }
+
     public User getCurrentUser(Principal principal) {
         if (principal == null)
             return null;
