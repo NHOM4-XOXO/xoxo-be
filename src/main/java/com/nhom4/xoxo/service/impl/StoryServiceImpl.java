@@ -188,7 +188,7 @@ public class StoryServiceImpl implements StoryService {
             try {
                 // We need FriendshipService to check this
                 // For now, implement basic logic
-                return friendshipService.areFriends(currentUser.getId(), story.getUser().getId());
+                return friendshipService.areFriends(currentUser.getId(), story.getUser().getId()).isAreFriends();
             } catch (Exception e) {
                 // If error, deny access for security
                 return false;

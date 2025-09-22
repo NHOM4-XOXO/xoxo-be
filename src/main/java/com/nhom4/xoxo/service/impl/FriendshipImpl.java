@@ -8,6 +8,7 @@ import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
 
+import com.nhom4.xoxo.dto.res.AreFriendsResponse;
 import com.nhom4.xoxo.entity.Friendship;
 import com.nhom4.xoxo.entity.Role;
 import com.nhom4.xoxo.entity.User;
@@ -153,7 +154,7 @@ public class FriendshipImpl implements FriendshipService {
     }
 
     @Override
-    public boolean areFriends(Long userId1, Long userId2) {
+    public AreFriendsResponse areFriends(Long userId1, Long userId2) {
         User user1 = userRepository.findById(userId1)
                 .orElseThrow(() -> new ServiceException("User not found"));
         User user2 = userRepository.findById(userId2)
@@ -162,9 +163,22 @@ public class FriendshipImpl implements FriendshipService {
         // Check if friendship exists in either direction with ACCEPTED status
         Optional<Friendship> friendship1 = friendshipRepository.findByUserAndFriend(user1, user2);
         Optional<Friendship> friendship2 = friendshipRepository.findByUserAndFriend(user2, user1);
+
+        AreFriendsResponse response = AreFriendsResponse.builder()
+                .areFriends(false)
+                .friendshipId(0)
+                .build();
+        if (friendship1.isPresent() && friendship1.get().getStatus() == FriendshipStatus.ACCEPTED) {
+            response.setAreFriends(true);
+            response.setFriendshipId(friendship1.get().getId());
+        }
+        if (friendship2.isPresent() && friendship2.get().getStatus() == FriendshipStatus.ACCEPTED) {
+            response.setAreFriends(true);
+            response.setFriendshipId(friendship2.get().getId());
+        }
+        return response;
         
-        return (friendship1.isPresent() && friendship1.get().getStatus() == FriendshipStatus.ACCEPTED) ||
-               (friendship2.isPresent() && friendship2.get().getStatus() == FriendshipStatus.ACCEPTED);
+       
     }
 
     @Override

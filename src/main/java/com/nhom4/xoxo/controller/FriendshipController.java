@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.nhom4.xoxo.dto.WrapRes;
 import com.nhom4.xoxo.dto.req.FriendshipRequest;
+import com.nhom4.xoxo.dto.res.AreFriendsResponse;
 import com.nhom4.xoxo.dto.res.FriendshipResponse;
 import com.nhom4.xoxo.dto.res.UserResponse;
 import com.nhom4.xoxo.dto.res.SuggestedFriendResponse;
@@ -165,9 +166,9 @@ public class FriendshipController {
         return ResponseEntity.ok(WrapRes.success(response));
     }
     @GetMapping("/{userId}/is-friend")
-    public ResponseEntity<WrapRes<Boolean>> isFriend(@PathVariable Long userId, Principal principal) {
+    public ResponseEntity<WrapRes<AreFriendsResponse>> isFriend(@PathVariable Long userId, Principal principal) {
         User user = getCurrentUser(principal);
-        boolean isFriend = friendshipService.areFriends(user.getId(), userId);
+        AreFriendsResponse isFriend = friendshipService.areFriends(user.getId(), userId);
         return ResponseEntity.ok(WrapRes.success(isFriend));
     }
 

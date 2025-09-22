@@ -2,6 +2,7 @@ package com.nhom4.xoxo.service;
 
 import java.util.List;
 
+import com.nhom4.xoxo.dto.res.AreFriendsResponse;
 import com.nhom4.xoxo.entity.Friendship;
 import com.nhom4.xoxo.entity.User;
 
@@ -32,7 +33,7 @@ public interface FriendshipService {
     List<Friendship> getSentFriendships(Long userId);
 
     // Kiểm tra 2 user có phải bạn bè không
-    boolean areFriends(Long userId1, Long userId2);
+    AreFriendsResponse areFriends(Long userId1, Long userId2);
 
     // Kiểm tra có lời mời kết bạn nào giữa 2 user không
     boolean hasPendingRequest(Long userId1, Long userId2);
