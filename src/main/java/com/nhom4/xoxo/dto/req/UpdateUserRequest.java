@@ -42,7 +42,7 @@ public class UpdateUserRequest {
 
     @Size(max = 255)
     @NotBlank(message = "Username không được để trống")
-    @Pattern(regexp = "^[\\p{L} ]+$", message = "Username không được chứa số hoặc ký tự đặc biệt")
+    @Pattern(regexp = "^[\\p{L}\\p{N} ]+$", message = "Username không được chứa ký tự đặc biệt")
     private String username;
 
  
