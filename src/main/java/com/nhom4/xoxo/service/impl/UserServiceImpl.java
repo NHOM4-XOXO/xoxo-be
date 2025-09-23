@@ -1,7 +1,6 @@
 package com.nhom4.xoxo.service.impl;
 
 import java.text.Normalizer;
-import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.List;
@@ -257,9 +256,13 @@ public class UserServiceImpl implements UserService {
             return userRepository.save(user);
         }
         if (currentUser.getRoles().contains(Role.USER)) {
-            if(!canUpdateUsername(currentUser)){
-                throw new ServiceException("Username already exists");
-
+            // Allow keeping the same username; only check when changed
+            String newUsername = user.getUsername();
+            String oldUsername = targetUser.getUsername();
+            if (newUsername != null && !newUsername.equals(oldUsername)) {
+                if (userRepository.existsByUsernameAndIdNot(newUsername, targetUser.getId())) {
+                    throw new ServiceException("Username already exists");
+                }
             }
             if (targetUser.getId().equals(currentUser.getId())) {
                 return userRepository.save(user);
@@ -683,22 +686,20 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public boolean canUpdateUsername(User currentUser) {
-        boolean existsByUsername = userRepository.existsByUsername(currentUser.getUsername());
-        if (existsByUsername) {
-            throw new ServiceException("Username already exists");
-        }
+        // Deprecated for general use in favor of explicit check with id exclusion
         return true;
-
     }
 
     @Override
     public boolean updateUsername(User currentUser, String username) {
-        if (canUpdateUsername(currentUser)) {
-            currentUser.setUsername(username);
-            userRepository.save(currentUser);
-            return true;
+        if (username != null && !username.equals(currentUser.getUsername())) {
+            if (userRepository.existsByUsernameAndIdNot(username, currentUser.getId())) {
+                throw new ServiceException("Username already exists");
+            }
         }
-        return false;
+        currentUser.setUsername(username);
+        userRepository.save(currentUser);
+        return true;
     }
 
     @Override

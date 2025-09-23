@@ -23,10 +23,10 @@ public class CookieConfig {
     public ResponseCookie createRefreshTokenCookie(String refreshToken) {
         ResponseCookieBuilder cookieBuilder = ResponseCookie.from("refreshToken", refreshToken)
                 .httpOnly(true)
-                .secure(true) // Luôn TRUE vì cả local và prod đều dùng HTTPS
+                .secure(true) 
                 .path("/")
                 .maxAge(Duration.ofDays(7))
-                .sameSite("None"); // An toàn vì đã có secure=true
+                .sameSite("strict"); 
         
         // Chỉ set domain cho production
         if (isProduction) {

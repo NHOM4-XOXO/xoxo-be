@@ -32,6 +32,8 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     Optional<User> findByUsername(String username);
     
+    boolean existsByUsernameAndIdNot(String username, Long id);
+    
     // Search methods
     @Query("SELECT u FROM User u WHERE (" +
            "LOWER(u.firstName) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
