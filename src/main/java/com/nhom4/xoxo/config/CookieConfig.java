@@ -26,7 +26,7 @@ public class CookieConfig {
                 .secure(true) 
                 .path("/")
                 .maxAge(Duration.ofDays(7))
-                .sameSite("strict"); 
+                .sameSite("none"); 
         
         // Chỉ set domain cho production
         if (isProduction) {
