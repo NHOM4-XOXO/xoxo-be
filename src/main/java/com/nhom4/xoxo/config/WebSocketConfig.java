@@ -76,7 +76,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     public TaskScheduler taskScheduler() {
         ThreadPoolTaskScheduler scheduler = 
             new ThreadPoolTaskScheduler();
-        scheduler.setPoolSize(10);
+        scheduler.setPoolSize(50);
         scheduler.setThreadNamePrefix("websocket-");
         scheduler.initialize();
         return scheduler;

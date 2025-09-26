@@ -17,4 +17,4 @@ WORKDIR /app
 COPY --from=builder /app/target/*.jar app.jar
 
 # Set entrypoint
-ENTRYPOINT ["java", "-jar", "app.jar"]
+ENTRYPOINT ["java", "-Xms512m", "-Xmx1536m", "-XX:+UseG1GC", "-jar", "app.jar"]
