@@ -249,26 +249,43 @@ public class FriendshipImpl implements FriendshipService {
     }
 
     private List<User> getMutualFriends(User user1, User user2) {
-        List<User> mutualFriends = new ArrayList<>();
         List<User> friends1 = getFriendsByUserId(user1.getId());
-        Set<Long> friendIds1 = friends1.stream()
-                .map(User::getId)
-                .collect(Collectors.toSet());   
         List<User> friends2 = getFriendsByUserId(user2.getId());
-        Set<Long> friendIds2 = friends2.stream()
-                .map(User::getId)
-                .collect(Collectors.toSet());
-        mutualFriends.addAll(friends1.stream()
-                .filter(friend -> friendIds2.contains(friend.getId()))
-                .collect(Collectors.toList()));
-        mutualFriends.addAll(friends2.stream()
-                .filter(friend -> friendIds1.contains(friend.getId()))
-                .collect(Collectors.toList()));
-        return mutualFriends;
+    
+        // Index để map id -> User (giữ 1 bản duy nhất)
+        java.util.Map<Long, User> byId = java.util.stream.Stream.concat(friends1.stream(), friends2.stream())
+                .collect(java.util.stream.Collectors.toMap(
+                        User::getId,
+                        u -> u,
+                        (a, b) -> a
+                ));
+    
+        java.util.Set<Long> ids1 = friends1.stream().map(User::getId).collect(java.util.stream.Collectors.toSet());
+        java.util.Set<Long> ids2 = friends2.stream().map(User::getId).collect(java.util.stream.Collectors.toSet());
+    
+        // Giao 2 tập
+        ids1.retainAll(ids2);
+        // Phòng hờ nếu list bạn trả về có chính user
+        ids1.remove(user1.getId());
+        ids1.remove(user2.getId());
+    
+        return ids1.stream()
+                .map(byId::get)
+                .collect(java.util.stream.Collectors.toList());
     }
+    
     private Long countMutualFriends(User user1, User user2) {
-        List<User> mutualFriends = getMutualFriends(user1, user2);
-        return (long) mutualFriends.size();
+        List<User> friends1 = getFriendsByUserId(user1.getId());
+        List<User> friends2 = getFriendsByUserId(user2.getId());
+    
+        java.util.Set<Long> ids1 = friends1.stream().map(User::getId).collect(java.util.stream.Collectors.toSet());
+        java.util.Set<Long> ids2 = friends2.stream().map(User::getId).collect(java.util.stream.Collectors.toSet());
+    
+        ids1.retainAll(ids2);
+        ids1.remove(user1.getId());
+        ids1.remove(user2.getId());
+    
+        return (long) ids1.size();
     }
 
 }
