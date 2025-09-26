@@ -1,0 +1,116 @@
+### Test NewsFeed APIs
+
+# 0A. 👤 USER: Khởi tạo NewsFeed cho chính mình (RECOMMENDED for users)
+POST https://localhost:8443/api/newsfeed/initialize
+Authorization: Bearer eyJhbGciOiJIUzUxMiJ9.eyJzdWIiOiJ0dWFubWFpeWV1bmd1b2lkb0BnbWFpbC5jb20iLCJyb2xlcyI6W10sImlhdCI6MTc1ODg3MDAxOCwiZXhwIjoxNzU4ODcwNjE4fQ.tWLuhjs7bksqywOwEeDXykJ1S-PcjJaCczxZ0KUM07KmpEHFaak1qNSAvmYZqeVD0hWheu0HSX3ObrkzPcUAsQ
+
+###
+
+# 0B. 🔧 ADMIN: Khởi tạo NewsFeed cho user cụ thể (ADMIN only) 
+POST https://localhost:8443/api/newsfeed/admin/initialize-user/8
+Authorization: Bearer admin-jwt-token
+
+###
+
+# 0C. Create sample data for testing (chỉ dùng nếu không có data gì)
+POST https://localhost:8443/api/newsfeed/test/create-sample-data
+Authorization: Bearer your-jwt-token
+
+###
+
+# 2. DEBUG: Kiểm tra raw data từ database (nếu step 0 thành công nhưng GET vẫn empty)
+GET https://localhost:8443/api/newsfeed/debug/raw-items
+Authorization: Bearer your-jwt-token
+
+###
+
+# 3. Get main newsfeed (with enhanced debugging) - SẼ CÓ DATA SAU KHI FIX
+GET https://localhost:8443/api/newsfeed?page=0&size=20&sortBy=priority
+Authorization: Bearer your-jwt-token
+
+###
+
+# 3. Get unseen newsfeed
+GET https://localhost:8443/api/newsfeed/unseen?page=0&size=50
+Authorization: Bearer your-jwt-token
+
+###
+
+# 4. Get newsfeed by type (posts only)
+GET https://localhost:8443/api/newsfeed/type/POST?page=0&size=20
+Authorization: Bearer your-jwt-token
+
+###
+
+# 5. Get recent newsfeed (last 24 hours)
+GET https://localhost:8443/api/newsfeed/recent?page=0&size=30
+Authorization: Bearer your-jwt-token
+
+###
+
+# 6. Mark items as seen
+POST https://localhost:8443/api/newsfeed/mark-seen
+Authorization: Bearer your-jwt-token
+Content-Type: application/json
+
+[1, 2, 3, 4, 5]
+
+###
+
+# 7. Mark item as interacted
+POST https://localhost:8443/api/newsfeed/items/1/interact
+Authorization: Bearer your-jwt-token
+
+###
+
+# 8. Get unseen count
+GET https://localhost:8443/api/newsfeed/unseen-count
+Authorization: Bearer your-jwt-token
+
+###
+
+# 9. Get feed analytics
+GET https://localhost:8443/api/newsfeed/analytics
+Authorization: Bearer your-jwt-token
+
+###
+
+# 10. Get popular content
+GET https://localhost:8443/api/newsfeed/popular?page=0&size=10
+Authorization: Bearer your-jwt-token
+
+###
+
+# 11. Get trending topics
+GET https://localhost:8443/api/newsfeed/trending-topics
+Authorization: Bearer your-jwt-token
+
+###
+
+# 12. Refresh newsfeed
+POST https://localhost:8443/api/newsfeed/refresh
+Authorization: Bearer your-jwt-token
+
+###
+
+# 13. Clear cache (for testing)
+DELETE https://localhost:8443/api/newsfeed/cache
+Authorization: Bearer your-jwt-token
+
+###
+
+# 14. Update priority scores
+POST https://localhost:8443/api/newsfeed/update-priorities
+Authorization: Bearer your-jwt-token
+
+###
+
+# 15. ADMIN: Dọn dẹp friendship items (để chỉ giữ posts - tăng performance)
+POST https://localhost:8443/api/newsfeed/admin/cleanup-friendship-items
+Authorization: Bearer admin-jwt-token
+
+###
+
+# 16. ADMIN: Populate NewsFeed cho TẤT CẢ users (one-time migration)
+POST https://localhost:8443/api/newsfeed/admin/populate-all-users
+Authorization: Bearer admin-jwt-token

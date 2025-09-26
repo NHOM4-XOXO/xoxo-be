@@ -242,4 +242,14 @@ public interface PostRepository extends JpaRepository<Post, Long> {
          "LOWER(p.location) LIKE LOWER(CONCAT('%', :keyword, '%'))) AND " +
          "p.isPublic = true AND p.status = com.nhom4.xoxo.enums.PostStatus.ACTIVE")
   Page<Post> searchPublicPostsPageable(@Param("keyword") String keyword, Pageable pageable);
+  
+  // NewsFeed specific queries
+  @Query("SELECT p FROM Post p JOIN FETCH p.author a WHERE " +
+         "p.author IN :users AND p.createdAt >= :since AND " +
+         "p.status = com.nhom4.xoxo.enums.PostStatus.ACTIVE " +
+         "ORDER BY p.createdAt DESC")
+  List<Post> findRecentPostsByUsers(@Param("users") List<User> users, @Param("since") java.time.LocalDateTime since);
+  
+  // Get top 20 public posts for newsfeed fallback
+  List<Post> findTop20ByIsPublicTrueAndStatusOrderByCreatedAtDesc(PostStatus status);
 }

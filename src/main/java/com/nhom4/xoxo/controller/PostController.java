@@ -278,13 +278,18 @@ public class PostController {
         existingPost.setAllowComments(postRequest.getAllowComments());
         existingPost.setAllowLikes(postRequest.getAllowLikes());
         existingPost.setAllowShares(postRequest.getAllowShares());
-
+        List<Long> mediaIds = postRequest.getMediaIds();
+        if (mediaIds != null && !mediaIds.isEmpty()) {
+            for (Long mediaId : mediaIds) {
+                postService.addMediaToPost(postId, mediaId);
+            }
+        }
         // Update parent post if provided
         if (postRequest.getParentPostId() != null) {
             Post parentPost = postService.getPostById(postRequest.getParentPostId()).get();
             existingPost.setParentPost(parentPost);
         }
-
+      
         Post updatedPost = postService.updatePost(postId, existingPost);
         PostResponse postResponse = mapToPostResponse(updatedPost);
         return ResponseEntity.ok(WrapRes.success(postResponse));

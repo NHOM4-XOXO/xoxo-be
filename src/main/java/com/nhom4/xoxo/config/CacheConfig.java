@@ -106,6 +106,16 @@ public class CacheConfig {
             // API response cache
             cacheConfigurations.put("api-responses", defaultCacheConfig.entryTtl(Duration.ofMinutes(5)));
 
+            // ==================== NewsFeed Caches ====================
+            // News feed cache - medium TTL for feed content
+            cacheConfigurations.put("news-feed", defaultCacheConfig.entryTtl(Duration.ofMinutes(30)));
+            
+            // News feed items cache - shorter TTL for real-time updates
+            cacheConfigurations.put("news-feed-items", defaultCacheConfig.entryTtl(Duration.ofMinutes(15)));
+            
+            // News feed analytics cache
+            cacheConfigurations.put("news-feed-analytics", defaultCacheConfig.entryTtl(Duration.ofMinutes(60)));
+
             return RedisCacheManager.builder(redisConnectionFactory)
                     .cacheDefaults(defaultCacheConfig)
                     .withInitialCacheConfigurations(cacheConfigurations)
@@ -122,7 +132,8 @@ public class CacheConfig {
                     "popular", "suggested", "trending", "search-results",
                     "media", "file-uploads",
                     "notifications", "unread-counts",
-                    "db-queries", "api-responses");
+                    "db-queries", "api-responses",
+                    "news-feed", "news-feed-items", "news-feed-analytics");
         }
     }
 
