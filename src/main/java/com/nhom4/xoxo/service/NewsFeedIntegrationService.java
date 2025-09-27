@@ -46,7 +46,7 @@ public class NewsFeedIntegrationService {
             // Get author's friends
             List<User> friends = friendshipRepository.findByUserAndStatus(post.getAuthor(), FriendshipStatus.ACCEPTED)
                 .stream()
-                .map(friendship -> friendship.getFriend().equals(post.getAuthor()) ? 
+                .map(friendship -> friendship.getFriend().getId().equals(post.getAuthor().getId()) ? 
                      friendship.getUser() : friendship.getFriend())
                 .toList();
             
@@ -86,7 +86,7 @@ public class NewsFeedIntegrationService {
             log.debug("Processing post like for news feed: post={}, user={}", post.getId(), user.getId());
             
             // Add to post author's feed (if not same user)
-            if (!post.getAuthor().equals(user)) {
+            if (!post.getAuthor().getId().equals(user.getId())) {
                 newsFeedService.addFeedItem(
                     post.getAuthor().getId(), 
                     user, 
@@ -120,7 +120,7 @@ public class NewsFeedIntegrationService {
             log.debug("Processing post comment for news feed: post={}, user={}", post.getId(), user.getId());
             
             // Add to post author's feed (if not same user)
-            if (!post.getAuthor().equals(user)) {
+            if (!post.getAuthor().getId().equals(user.getId())) {
                 newsFeedService.addFeedItem(
                     post.getAuthor().getId(), 
                     user, 
@@ -320,7 +320,7 @@ public class NewsFeedIntegrationService {
             log.debug("Processing post share for news feed: post={}, sharer={}", post.getId(), sharer.getId());
             
             // Add to post author's feed (if not same user)
-            if (!post.getAuthor().equals(sharer)) {
+            if (!post.getAuthor().getId().equals(sharer.getId())) {
                 newsFeedService.addFeedItem(
                     post.getAuthor().getId(),
                     sharer,
@@ -337,7 +337,7 @@ public class NewsFeedIntegrationService {
             // Add to sharer's friends' feeds
             List<User> sharerFriends = friendshipRepository.findByUserAndStatus(sharer, FriendshipStatus.ACCEPTED)
                 .stream()
-                .map(friendship -> friendship.getFriend().equals(sharer) ? 
+                .map(friendship -> friendship.getFriend().getId().equals(sharer.getId()) ? 
                      friendship.getUser() : friendship.getFriend())
                 .toList();
             
@@ -418,7 +418,7 @@ public class NewsFeedIntegrationService {
             // Get user's friends
             List<User> friends = friendshipRepository.findByUserAndStatus(user, FriendshipStatus.ACCEPTED)
                 .stream()
-                .map(friendship -> friendship.getFriend().equals(user) ? 
+                .map(friendship -> friendship.getFriend().getId().equals(user.getId()) ? 
                      friendship.getUser() : friendship.getFriend())
                 .toList();
             

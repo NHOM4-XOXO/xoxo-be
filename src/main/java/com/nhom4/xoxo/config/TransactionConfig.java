@@ -2,6 +2,7 @@ package com.nhom4.xoxo.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Primary;
 import org.springframework.transaction.annotation.EnableTransactionManagement;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.transaction.PlatformTransactionManager;
@@ -13,6 +14,7 @@ import jakarta.persistence.EntityManagerFactory;
 public class TransactionConfig {
     
     @Bean(name = "transactionManager")
+    @Primary
     public PlatformTransactionManager jpaTransactionManager(EntityManagerFactory entityManagerFactory) {
         return new JpaTransactionManager(entityManagerFactory);
     }
