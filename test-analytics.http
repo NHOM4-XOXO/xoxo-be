@@ -1,0 +1,20 @@
+### Test NewsFeed Analytics
+GET https://localhost:8443/api/newsfeed/analytics
+Authorization: Bearer YOUR_TOKEN_HERE
+
+### Test NewsFeed Basic
+GET https://localhost:8443/api/newsfeed?page=0&size=20
+Authorization: Bearer YOUR_TOKEN_HERE
+
+### Test Admin Posts
+GET https://localhost:8443/api/admin/posts
+Authorization: Bearer YOUR_TOKEN_HERE
+
+### Test NewsFeed Initialize
+POST https://localhost:8443/api/newsfeed/initialize
+Authorization: Bearer YOUR_TOKEN_HERE
+
+### Test Cleanup Old Items
+POST https://localhost:8443/api/newsfeed/admin/cleanup-old-items?daysToKeep=30
+Authorization: Bearer YOUR_TOKEN_HERE
+

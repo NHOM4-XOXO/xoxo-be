@@ -2,11 +2,13 @@ package com.nhom4.xoxo.controller;
 
 import com.nhom4.xoxo.dto.WrapRes;
 import com.nhom4.xoxo.dto.res.PostReactionResponse;
-import com.nhom4.xoxo.dto.res.PostReactionStatsResponse;
 import com.nhom4.xoxo.entity.User;
 import com.nhom4.xoxo.enums.PostReactionType;
 import com.nhom4.xoxo.service.PostReactionService;
 import com.nhom4.xoxo.service.UserService;
+import com.nhom4.xoxo.service.NewsFeedIntegrationService;
+import com.nhom4.xoxo.service.PostService;
+import com.nhom4.xoxo.entity.Post;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -32,6 +34,8 @@ public class PostReactionController {
 
     private final PostReactionService postReactionService;
     private final UserService userService;
+    private final NewsFeedIntegrationService newsFeedIntegrationService;
+    private final PostService postService;
 
     private User getCurrentUser() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
@@ -52,7 +56,15 @@ public class PostReactionController {
             @Parameter(description = "ID of the post") @PathVariable Long postId,
             @Parameter(description = "Type of reaction") @PathVariable PostReactionType reactionType) {
         
-        PostReactionResponse response = postReactionService.addReaction(postId, getCurrentUser().getId(), reactionType);
+        User currentUser = getCurrentUser();
+        PostReactionResponse response = postReactionService.addReaction(postId, currentUser.getId(), reactionType);
+        
+        // Update NewsFeed for reaction (similar to like)
+        Post post = postService.getPostById(postId).orElse(null);
+        if (post != null) {
+            newsFeedIntegrationService.onPostLiked(post, currentUser);
+        }
+        
         return ResponseEntity.ok(WrapRes.success(response));
     }
 

@@ -722,4 +722,79 @@ public class NewsFeedController {
                           .and(Sort.by("activityTime").descending());
         }
     }
+
+    @Operation(
+        summary = "📊 Analytics: Lấy thống kê NewsFeed",
+        description = "Lấy thống kê tổng quan về NewsFeed system",
+        responses = {
+            @ApiResponse(responseCode = "200", description = "Thống kê NewsFeed"),
+            @ApiResponse(responseCode = "403", description = "Không có quyền admin")
+        }
+    )
+    @GetMapping("/analytics")
+    public ResponseEntity<WrapRes<Object>> getNewsFeedAnalytics(Principal principal) {
+        try {
+            String email = principal.getName();
+            User currentUser = userService.findByEmail(email);
+
+            if (!userService.isAdminOrOwner(currentUser)) {
+                return ResponseEntity.status(403)
+                    .body(WrapRes.error("Access denied. Admin or Owner role required."));
+            }
+
+            Object analytics = newsFeedService.getFeedAnalytics(currentUser.getId());
+            return ResponseEntity.ok(WrapRes.success(analytics));
+
+        } catch (Exception e) {
+            log.error("Error getting NewsFeed analytics", e);
+            return ResponseEntity.status(500)
+                .body(WrapRes.error("Failed to get analytics"));
+        }
+    }
+
+    @Operation(
+        summary = "🧹 Cleanup: Dọn dẹp NewsFeed cũ",
+        description = "Xóa các feed items cũ hơn số ngày chỉ định",
+        responses = {
+            @ApiResponse(responseCode = "200", description = "Dọn dẹp thành công"),
+            @ApiResponse(responseCode = "403", description = "Không có quyền admin")
+        }
+    )
+    @PostMapping("/admin/cleanup-old-items")
+    public ResponseEntity<WrapRes<Object>> cleanupOldFeedItems(
+            @RequestParam(defaultValue = "30") int daysToKeep,
+            Principal principal) {
+        try {
+            String email = principal.getName();
+            User currentUser = userService.findByEmail(email);
+
+            if (!userService.isAdminOrOwner(currentUser)) {
+                return ResponseEntity.status(403)
+                    .body(WrapRes.error("Access denied. Admin or Owner role required."));
+            }
+
+            // Get all users and cleanup their feeds
+            List<User> allUsers = userRepository.findAll();
+            int cleanedUsers = 0;
+
+            for (User user : allUsers) {
+                try {
+                    newsFeedService.cleanupOldFeedItems(user.getId(), 
+                        LocalDateTime.now().minusDays(daysToKeep));
+                    cleanedUsers++;
+                } catch (Exception e) {
+                    log.warn("Error cleaning up feed for user {}: {}", user.getId(), e.getMessage());
+                }
+            }
+
+            return ResponseEntity.ok(WrapRes.success(
+                String.format("Cleaned up old feed items for %d users (keeping %d days)", 
+                             cleanedUsers, daysToKeep)));
+
+        } catch (Exception e) {
+            log.error("Error cleaning up old feed items", e);
+            return ResponseEntity.status(500)
+                .body(WrapRes.error("Failed to cleanup old items"));
+        }
+    }
 }

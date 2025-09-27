@@ -27,11 +27,13 @@ public enum NewsFeedItemType {
     JOINED_GROUP("User joined a group"),
     CREATED_GROUP("User created a group"),
     GROUP_POST("User posted in a group"),
+    GROUP_JOINED("User joined a group"),
     
     // Profile activities
     UPDATED_PROFILE("User updated their profile"),
     UPDATED_COVER_PHOTO("User updated their cover photo"),
     UPDATED_AVATAR("User updated their profile picture"),
+    STATUS_UPDATE("User updated their status"),
     
     // Birthday and special events
     BIRTHDAY("User has a birthday today"),

@@ -26,6 +26,7 @@ import com.nhom4.xoxo.entity.User;
 import com.nhom4.xoxo.service.FriendshipService;
 import com.nhom4.xoxo.graph.service.SocialGraphService;
 import com.nhom4.xoxo.service.UserService;
+import com.nhom4.xoxo.service.NewsFeedIntegrationService;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -39,6 +40,7 @@ public class FriendshipController {
     private final UserService userService;
     private final SocialGraphService socialGraphService;
     private final ModelMapper modelMapper;
+    private final NewsFeedIntegrationService newsFeedIntegrationService;
 
     @PostMapping
     public ResponseEntity<WrapRes<FriendshipResponse>> createFriendship(
@@ -65,6 +67,10 @@ public class FriendshipController {
         socialGraphService.connectFriends(
                 friendship.getUser().getId(), friendship.getUser().getUsername(),
                 friendship.getFriend().getId(), friendship.getFriend().getUsername());
+        
+        // Update NewsFeed for new friendship
+        newsFeedIntegrationService.onFriendshipCreated(friendship.getUser(), friendship.getFriend());
+        
         FriendshipResponse response = FriendshipResponse.fromFriendship(friendship, modelMapper);
         return ResponseEntity.ok(WrapRes.success(response));
     }

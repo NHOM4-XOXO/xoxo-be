@@ -33,11 +33,11 @@ import com.nhom4.xoxo.entity.Media;
 import com.nhom4.xoxo.entity.Post;
 import com.nhom4.xoxo.entity.User;
 import com.nhom4.xoxo.enums.PostReactionType;
-import com.nhom4.xoxo.exception.NotFoundException;
 import com.nhom4.xoxo.service.PostReactionService;
 import com.nhom4.xoxo.service.PostService;
 import com.nhom4.xoxo.service.CloudinaryService;
 import com.nhom4.xoxo.service.UserService;
+import com.nhom4.xoxo.service.NewsFeedIntegrationService;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -54,14 +54,16 @@ public class PostController {
     private final UserService userService;
     private final ModelMapper modelMapper;
     private final CloudinaryService cloudinaryService;
+    private final NewsFeedIntegrationService newsFeedIntegrationService;
 
     public PostController(PostService postService, PostReactionService postReactionService, UserService userService,
-            ModelMapper modelMapper, CloudinaryService cloudinaryService) {
+            ModelMapper modelMapper, CloudinaryService cloudinaryService, NewsFeedIntegrationService newsFeedIntegrationService) {
         this.postService = postService;
         this.postReactionService = postReactionService;
         this.userService = userService;
         this.modelMapper = modelMapper; // kept for future mappings
         this.cloudinaryService = cloudinaryService;
+        this.newsFeedIntegrationService = newsFeedIntegrationService;
     }
 
     @Operation(summary = "Tạo bài viết mới", description = "Yêu cầu đã đăng nhập. Tạo bài viết mới.", responses = {
@@ -102,6 +104,9 @@ public class PostController {
                 postService.addMediaToPost(createdPost.getId(), mediaId);
             }
         }
+
+        // Update NewsFeed for friends
+        newsFeedIntegrationService.onPostCreated(createdPost);
 
         // Build response with media
         PostItemResponse postItem = postService.getPostItemById(createdPost.getId()).orElse(null);
@@ -295,14 +300,6 @@ public class PostController {
         return ResponseEntity.ok(WrapRes.success(postResponse));
     }
 
-    @Operation(summary = "Xóa bài viết", description = "Xóa bài viết (soft delete)", responses = {
-            @ApiResponse(responseCode = "200", description = "Xóa bài viết thành công")
-    })
-    @DeleteMapping("/{postId}")
-    public ResponseEntity<WrapRes<?>> deletePost(@PathVariable Long postId) {
-        postService.deletePost(postId);
-        return ResponseEntity.ok(WrapRes.success("Post deleted successfully"));
-    }
 
     @Operation(summary = "like post", description = " like  post", responses = {
             @ApiResponse(responseCode = "200", description = "like  post")
@@ -313,6 +310,15 @@ public class PostController {
         String email = authentication.getName();
         User user = userService.findByEmail(email);
         boolean liked = postService.toggleLike(postId, user);
+        
+        // Update NewsFeed if liked
+        if (liked) {
+            Post post = postService.getPostById(postId).orElse(null);
+            if (post != null) {
+                newsFeedIntegrationService.onPostLiked(post, user);
+            }
+        }
+        
         return ResponseEntity.ok(WrapRes.success(liked ? "LIKED" : "UNLIKED"));
     }
 
@@ -326,9 +332,64 @@ public class PostController {
         String email = authentication.getName();
         User user = userService.findByEmail(email);
         CommentItemResponse c = postService.addComment(postId, user, content, parentCommentId);
+        
+        // Update NewsFeed for comment
+        Post post = postService.getPostById(postId).orElse(null);
+        if (post != null) {
+            newsFeedIntegrationService.onPostCommented(post, user);
+        }
+        
         return ResponseEntity.ok(WrapRes.success(c));
     }
 
+    @Operation(summary = "Share post", description = "Share a post to your friends' feeds")
+    @PostMapping("/{postId}/share")
+    public ResponseEntity<WrapRes<?>> sharePost(@PathVariable Long postId, @RequestParam("shareContent") String shareContent) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        String email = authentication.getName();
+        User user = userService.findByEmail(email);
+        
+        Post post = postService.getPostById(postId).orElse(null);
+        if (post == null) {
+            return ResponseEntity.badRequest()
+                .body(WrapRes.error("Post not found"));
+        }
+        
+        SharePostItemResponse shareResponse = postService.sharePost(postId, user, shareContent);
+        
+        // Update NewsFeed for share
+        newsFeedIntegrationService.handlePostShare(post, user, shareContent);
+        
+        return ResponseEntity.ok(WrapRes.success(shareResponse));
+    }
+
+    @Operation(summary = "Delete post", description = "Delete a post and clean up NewsFeed")
+    @DeleteMapping("/{postId}")
+    public ResponseEntity<WrapRes<?>> deletePost(@PathVariable Long postId) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        String email = authentication.getName();
+        User user = userService.findByEmail(email);
+        
+        Post post = postService.getPostById(postId).orElse(null);
+        if (post == null) {
+            return ResponseEntity.badRequest()
+                .body(WrapRes.error("Post not found"));
+        }
+        
+        // Check if user owns the post
+        if (!post.getAuthor().getId().equals(user.getId())) {
+            return ResponseEntity.status(403)
+                .body(WrapRes.error("You can only delete your own posts"));
+        }
+        
+        // Delete post
+        postService.deletePost(postId);
+        
+        // Clean up NewsFeed
+        newsFeedIntegrationService.onPostDeleted(postId);
+        
+        return ResponseEntity.ok(WrapRes.success("Post deleted successfully"));
+    }
 
     @Operation(summary = "Lấy subtree của 1 comment", description = "Trả về node và tất cả descendants của nó")
     @GetMapping("/comments/{commentId}/subtree")
@@ -342,18 +403,6 @@ public class PostController {
         return ResponseEntity.ok(WrapRes.success(postService.countAllRepliesForComment(commentId)));
     }
 
-    @Operation(summary = "Share post", description = "Share post", responses = {
-            @ApiResponse(responseCode = "200", description = "Share post")
-    })
-    @PostMapping("/{postId}/share")
-    public ResponseEntity<WrapRes<?>> sharePost(@PathVariable Long postId,
-            @RequestParam(value = "content", required = false) String shareContent) {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        String email = authentication.getName();
-        User user = userService.findByEmail(email);
-        SharePostItemResponse sp = postService.sharePost(postId, user, shareContent);
-        return ResponseEntity.ok(WrapRes.success(sp));
-    }
 
     @Operation(summary = "Tăng view count", description = "Tăng số lượt xem của bài viết", responses = {
             @ApiResponse(responseCode = "200", description = "Tăng view count thành công")
