@@ -20,7 +20,7 @@ import lombok.extern.slf4j.Slf4j;
  */
 @Service
 @Slf4j
-@Transactional
+@Transactional("transactionManager")
 public class NewsFeedIntegrationService {
     
     private final NewsFeedService newsFeedService;
