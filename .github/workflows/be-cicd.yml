@@ -3,7 +3,7 @@ name: CI/CD pipeline
 on:
   push:
     branches:
-      - feature/setup-ci-cd
+      - dev
 
 jobs:
   build-and-deploy:
@@ -33,6 +33,12 @@ jobs:
 
       - name: Push Docker image
         run: docker push ${{ secrets.DOCKER_USERNAME }}/xoxo_web_service:latest
+      - name: Test SSH connection
+        run: |
+          echo "${{ secrets.SERVER_SSH_KEY }}" > key.pem
+          chmod 600 key.pem
+          ssh -i key.pem -o StrictHostKeyChecking=no ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} "echo 'SSH OK'"
+
 
       - name: Generate .env file
         run: |
@@ -84,6 +90,10 @@ jobs:
           ls -lha
           ls -lha .env || echo ".env not found"
           ls -lha docker-compose.yml || echo "docker-compose.yml not found"
+          
+      - name: Install libcrypt1
+        run: sudo apt-get update && sudo apt-get install -y libcrypt1
+
       - name: Copy docker-compose + .env to EC2
         uses: appleboy/scp-action@v0.1.7
         with:
@@ -95,6 +105,7 @@ jobs:
 
       - name: Deploy on EC2
         uses: appleboy/ssh-action@v1.2.0
+        timeout-minutes: 20
         with:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USER }}
