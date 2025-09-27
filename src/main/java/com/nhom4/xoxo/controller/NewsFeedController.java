@@ -344,27 +344,6 @@ public class NewsFeedController {
     
     // ==================== ANALYTICS & INSIGHTS ====================
     
-    @Operation(
-        summary = "Thống kê bảng tin", 
-        description = "Lấy thống kê về bảng tin của người dùng",
-        responses = {
-            @ApiResponse(responseCode = "200", description = "Lấy thống kê thành công")
-        }
-    )
-    @GetMapping("/analytics")
-    public ResponseEntity<WrapRes<Object>> getFeedAnalytics(Principal principal) {
-        
-        try {
-            User currentUser = getCurrentUser(principal);
-            Object analytics = newsFeedService.getFeedAnalytics(currentUser.getId());
-            
-            return ResponseEntity.ok(WrapRes.success(analytics));
-            
-        } catch (Exception e) {
-            log.error("Error getting feed analytics", e);
-            return ResponseEntity.ok(WrapRes.error("Không thể lấy thống kê: " + e.getMessage()));
-        }
-    }
     
     // ==================== ADMIN / TESTING ENDPOINTS ====================
     
