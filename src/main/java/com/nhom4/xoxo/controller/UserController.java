@@ -132,6 +132,23 @@ public class UserController {
         return ResponseEntity.ok(WrapRes.success(user));
     }
 
+    @Operation(summary = "Lấy thông tin user theo ID", description = "Lấy thông tin user theo ID", responses = {
+            @ApiResponse(responseCode = "200", description = "Lấy thông tin user theo ID thành công")
+    })
+    @GetMapping("/id/{id}")
+    public ResponseEntity<WrapRes<?>> getUserById(@PathVariable Long id) {
+        User user = userService.findById(id);
+        if (user != null && user.isEnabled() && 
+            !user.getRoles().contains(com.nhom4.xoxo.entity.Role.ADMIN) && 
+            !user.getRoles().contains(com.nhom4.xoxo.entity.Role.OWNER)) {
+            UserResponse userResponse = modelMapper.map(user, UserResponse.class);
+            userResponse.setAvatarUrl(cloudinaryService.buildCloudinaryUrl(user.getAvatarUrl(), com.nhom4.xoxo.enums.MediaType.IMAGE));
+            userResponse.setCoverUrl(cloudinaryService.buildCloudinaryUrl(user.getCoverUrl(), com.nhom4.xoxo.enums.MediaType.IMAGE));
+            return ResponseEntity.ok(WrapRes.success(userResponse));
+        }
+        return ResponseEntity.ok(WrapRes.success(null));
+    }
+
     // ==================== NOTIFICATION ENDPOINTS ====================
 
     @Operation(summary = "Lấy danh sách notifications của user hiện tại", description = "Lấy notifications có phân trang", responses = {
