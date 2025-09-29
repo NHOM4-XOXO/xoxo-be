@@ -5,6 +5,9 @@ import com.nhom4.xoxo.entity.NotificationType;
 import com.nhom4.xoxo.exception.NotFoundException;
 import com.nhom4.xoxo.kafka.NotificationProducer;
 import com.nhom4.xoxo.repository.NotificationRepository;
+import com.nhom4.xoxo.notification.MongoNotification;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
+import com.nhom4.xoxo.service.UserService;
 import com.nhom4.xoxo.service.NotificationService;
 import com.nhom4.xoxo.dto.req.NotificationMessage;
 import lombok.RequiredArgsConstructor;
@@ -23,6 +26,8 @@ public class NotificationServiceImpl implements NotificationService {
 
     private final NotificationRepository notificationRepository;
     private final NotificationProducer notificationProducer;
+    private final SimpMessagingTemplate messagingTemplate;
+    private final UserService userService;
 
     @Override
     public Notification createNotification(Notification notification) {
@@ -46,6 +51,42 @@ public class NotificationServiceImpl implements NotificationService {
         } catch (Exception e) {
             log.error("Failed to send notification via Kafka: {}", e.getMessage());
             // Không throw exception để không ảnh hưởng đến MySQL operation
+        }
+        
+        // Fallback: phát realtime trực tiếp qua STOMP khi chạy local không có Kafka
+        try {
+            String email = null;
+            try {
+                var user = userService.findById(savedNotification.getUserId());
+                email = user != null ? user.getEmail() : null;
+            } catch (Exception ignored) {}
+
+            MongoNotification payload = MongoNotification.builder()
+                .id(String.valueOf(savedNotification.getId()))
+                .userId(savedNotification.getUserId())
+                .message(savedNotification.getMessage())
+                .type(savedNotification.getType().name())
+                .targetId(savedNotification.getTargetId())
+                .targetType(savedNotification.getTargetType())
+                .senderId(savedNotification.getSenderId())
+                .actionType(savedNotification.getActionType())
+                .payload(savedNotification.getPayload())
+                .read(Boolean.TRUE.equals(savedNotification.getIsRead()))
+                .createdAt(savedNotification.getCreatedAt() != null ? savedNotification.getCreatedAt().atZone(java.time.ZoneId.systemDefault()).toInstant() : java.time.Instant.now())
+                .build();
+
+            messagingTemplate.convertAndSendToUser(
+                email != null ? email : String.valueOf(savedNotification.getUserId()),
+                "/queue/notifications",
+                payload
+            );
+            // Also broadcast to a public topic per user as a fallback for user-destination issues
+            messagingTemplate.convertAndSend(
+                "/topic/notifications/" + savedNotification.getUserId(),
+                payload
+            );
+        } catch (Exception e) {
+            log.warn("Fallback WS notify failed: {}", e.getMessage());
         }
         
         return savedNotification;
