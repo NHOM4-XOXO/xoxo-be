@@ -5,9 +5,13 @@ import com.nhom4.xoxo.entity.NotificationType;
 import com.nhom4.xoxo.exception.NotFoundException;
 import com.nhom4.xoxo.kafka.NotificationProducer;
 import com.nhom4.xoxo.repository.NotificationRepository;
+<<<<<<< HEAD
 import com.nhom4.xoxo.notification.MongoNotification;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import com.nhom4.xoxo.service.UserService;
+=======
+import com.nhom4.xoxo.service.NotificationWebSocketService;
+>>>>>>> 0a67354ea654c0834c8ffe5adb83421c514d8515
 import com.nhom4.xoxo.service.NotificationService;
 import com.nhom4.xoxo.dto.req.NotificationMessage;
 import lombok.RequiredArgsConstructor;
@@ -26,8 +30,12 @@ public class NotificationServiceImpl implements NotificationService {
 
     private final NotificationRepository notificationRepository;
     private final NotificationProducer notificationProducer;
+<<<<<<< HEAD
     private final SimpMessagingTemplate messagingTemplate;
     private final UserService userService;
+=======
+    private final NotificationWebSocketService notificationWebSocketService;
+>>>>>>> 0a67354ea654c0834c8ffe5adb83421c514d8515
 
     @Override
     public Notification createNotification(Notification notification) {
@@ -53,6 +61,7 @@ public class NotificationServiceImpl implements NotificationService {
             // Không throw exception để không ảnh hưởng đến MySQL operation
         }
         
+<<<<<<< HEAD
         // Fallback: phát realtime trực tiếp qua STOMP khi chạy local không có Kafka
         try {
             String email = null;
@@ -87,6 +96,15 @@ public class NotificationServiceImpl implements NotificationService {
             );
         } catch (Exception e) {
             log.warn("Fallback WS notify failed: {}", e.getMessage());
+=======
+        // Push realtime to the user over WebSocket
+        try {
+            notificationWebSocketService.sendNewNotification(notification.getUserId(), savedNotification);
+            Long unread = notificationRepository.countUnreadByUserId(notification.getUserId());
+            notificationWebSocketService.sendUnreadCount(notification.getUserId(), unread);
+        } catch (Exception ex) {
+            log.warn("Failed to push websocket notification: {}", ex.getMessage());
+>>>>>>> 0a67354ea654c0834c8ffe5adb83421c514d8515
         }
         
         return savedNotification;
@@ -147,6 +165,12 @@ public class NotificationServiceImpl implements NotificationService {
         notification.setIsRead(true);
         notification.setUpdatedAt(LocalDateTime.now());
         notificationRepository.save(notification);
+        try {
+            Long unread = notificationRepository.countUnreadByUserId(notification.getUserId());
+            notificationWebSocketService.sendUnreadCount(notification.getUserId(), unread);
+        } catch (Exception ex) {
+            log.warn("Failed to push unread count after read: {}", ex.getMessage());
+        }
     }
     
     @Override
@@ -157,6 +181,11 @@ public class NotificationServiceImpl implements NotificationService {
             notification.setUpdatedAt(LocalDateTime.now());
         });
         notificationRepository.saveAll(unreadNotifications);
+        try {
+            notificationWebSocketService.sendUnreadCount(userId, 0L);
+        } catch (Exception ex) {
+            log.warn("Failed to push unread count after read-all: {}", ex.getMessage());
+        }
     }
     
     @Override

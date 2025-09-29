@@ -1,0 +1,71 @@
+<!doctype html>
+<html>
+<body>
+  <div>
+    <h3>WebSocket Notifications Tester</h3>
+    <label>JWT (with Bearer):</label><br/>
+    <textarea id="token" rows="3" cols="90">Bearer </textarea><br/>
+    <label>WS Base URL:</label>
+    <input id="wsBase" size="60"/>
+    <button onclick="setDefaultBase()">Use current host</button>
+    <br/><br/>
+    <button onclick="connect()">Connect</button>
+    <button onclick="disconnect()">Disconnect</button>
+  </div>
+  <pre id="log" style="border:1px solid #ccc; padding:8px; height:260px; overflow:auto; background:#fafafa"></pre>
+
+  <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
+  <script src="https://unpkg.com/@stomp/stompjs@7.0.0/bundles/stomp.umd.min.js"></script>
+  <script>
+    let client;
+    const log = (m) => { const el = document.getElementById('log'); el.textContent += m + "\n"; el.scrollTop = el.scrollHeight; };
+
+    function setDefaultBase() {
+      const proto = (location.protocol === 'https:') ? 'https' : 'http';
+      document.getElementById('wsBase').value = proto + '://' + location.host;
+    }
+    setDefaultBase();
+
+    function connect() {
+      const token = document.getElementById('token').value.trim();
+      const base = document.getElementById('wsBase').value.trim().replace(/\/$/, '');
+      const wsEndpoint = base + '/ws';
+
+      // Use SockJS fallback for broader compatibility
+      client = new StompJs.Client({
+        webSocketFactory: () => new SockJS(wsEndpoint),
+        connectHeaders: token ? { Authorization: token } : {},
+        debug: (m) => log('[stomp] ' + m),
+        reconnectDelay: 2000,
+      });
+
+      client.onConnect = () => {
+        log('Connected to ' + wsEndpoint);
+        // Unread count
+        client.subscribe('/user/queue/notifications/unread-count', (msg) => {
+          try { log('[unread-count] ' + msg.body); } catch(e) { log('[unread-count] (parse err) ' + e.message); }
+        });
+        // New notifications
+        client.subscribe('/user/queue/notifications', (msg) => {
+          try { log('[notification] ' + msg.body); } catch(e) { log('[notification] (parse err) ' + e.message); }
+        });
+      };
+
+      client.onStompError = (frame) => {
+        log('STOMP error: ' + frame.headers['message']);
+      };
+      client.onWebSocketError = (e) => log('WebSocket error: ' + (e?.message || e));
+      client.activate();
+    }
+
+    function disconnect() {
+      if (client) {
+        client.deactivate();
+        log('Disconnected');
+      }
+    }
+  </script>
+</body>
+</html>
+
+
