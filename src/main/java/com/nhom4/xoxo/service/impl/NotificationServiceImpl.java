@@ -5,6 +5,7 @@ import com.nhom4.xoxo.entity.NotificationType;
 import com.nhom4.xoxo.exception.NotFoundException;
 import com.nhom4.xoxo.kafka.NotificationProducer;
 import com.nhom4.xoxo.repository.NotificationRepository;
+import com.nhom4.xoxo.service.NotificationWebSocketService;
 import com.nhom4.xoxo.service.NotificationService;
 import com.nhom4.xoxo.dto.req.NotificationMessage;
 import lombok.RequiredArgsConstructor;
@@ -23,6 +24,7 @@ public class NotificationServiceImpl implements NotificationService {
 
     private final NotificationRepository notificationRepository;
     private final NotificationProducer notificationProducer;
+    private final NotificationWebSocketService notificationWebSocketService;
 
     @Override
     public Notification createNotification(Notification notification) {
@@ -46,6 +48,15 @@ public class NotificationServiceImpl implements NotificationService {
         } catch (Exception e) {
             log.error("Failed to send notification via Kafka: {}", e.getMessage());
             // Không throw exception để không ảnh hưởng đến MySQL operation
+        }
+        
+        // Push realtime to the user over WebSocket
+        try {
+            notificationWebSocketService.sendNewNotification(notification.getUserId(), savedNotification);
+            Long unread = notificationRepository.countUnreadByUserId(notification.getUserId());
+            notificationWebSocketService.sendUnreadCount(notification.getUserId(), unread);
+        } catch (Exception ex) {
+            log.warn("Failed to push websocket notification: {}", ex.getMessage());
         }
         
         return savedNotification;
@@ -106,6 +117,12 @@ public class NotificationServiceImpl implements NotificationService {
         notification.setIsRead(true);
         notification.setUpdatedAt(LocalDateTime.now());
         notificationRepository.save(notification);
+        try {
+            Long unread = notificationRepository.countUnreadByUserId(notification.getUserId());
+            notificationWebSocketService.sendUnreadCount(notification.getUserId(), unread);
+        } catch (Exception ex) {
+            log.warn("Failed to push unread count after read: {}", ex.getMessage());
+        }
     }
     
     @Override
@@ -116,6 +133,11 @@ public class NotificationServiceImpl implements NotificationService {
             notification.setUpdatedAt(LocalDateTime.now());
         });
         notificationRepository.saveAll(unreadNotifications);
+        try {
+            notificationWebSocketService.sendUnreadCount(userId, 0L);
+        } catch (Exception ex) {
+            log.warn("Failed to push unread count after read-all: {}", ex.getMessage());
+        }
     }
     
     @Override
