@@ -49,7 +49,7 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
     @Autowired
     private CookieConfig cookieConfig;
 
-    @Value("${fe.user.base-url:https://app.xoxo.id.vn}")
+    @Value("${fe.user.base-url:https://web.xoxo.id.vn}")
     private String frontendBaseUrl;
 
     public static String toSlug(String input) {
