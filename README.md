@@ -1,0 +1,2 @@
+- Fe user: https://github.com/NHOM4-XOXO/xoxo-user-app
+- Fe admin: https://github.com/NHOM4-XOXO/xoxo-admin-app
